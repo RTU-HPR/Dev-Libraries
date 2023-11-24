@@ -1,0 +1,14 @@
+{
+    "name": "RTU-HPR-Library",
+    "version": "1.0.0",
+    "description": "Library for all RTU-HPR projects",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RTU-HPR/Dev-Libraries/"
+    },
+    "dependencies": {
+        "jgromes/RadioLib": "^6.2.0"
+    },
+    "frameworks": "*",
+    "platforms": "*"
+}
