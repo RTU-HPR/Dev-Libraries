@@ -25,10 +25,10 @@ String RadioLib_Wrapper<T>::type_name()
 }
 
 template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1)
+RadioLib_Wrapper<T>::RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1, HardwareSPI *SPI_BUS)
 {
     // Create new LoRa object
-    radio = new Module(CS, DIO0, RESET, DIO1);
+    radio = new Module(CS, DIO0, RESET, DIO1, *SPI_BUS);
 
     // Save the name of the radio type
     radio_typename = type_name();

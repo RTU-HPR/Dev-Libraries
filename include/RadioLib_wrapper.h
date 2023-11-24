@@ -1,6 +1,7 @@
 #pragma once
 #include <RadioLib.h>
 #include <Arduino.h>
+#include <SPI.h>
 
 namespace RadioLib_interrupts
 {
@@ -56,8 +57,9 @@ public:
      * @param DIO0 DIO0 pin (Busy)
      * @param RESET Reset pin
      * @param DIO1 DIO1 pin
+     * @param SPI_BUS used SPI bus
      */
-    RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1);
+    RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1, HardwareSPI *SPI_BUS);
 
     /**
      * @brief Configure radio module with given settings
