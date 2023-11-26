@@ -76,6 +76,23 @@ public:
     bool configure_radio(float FREQUENCY, int TXPOWER, int SPREADING, int CODING_RATE, float SIGNAL_BW, int SYNC_WORD);
 
     /**
+     * @brief Configure sx126x based radios so that the chip uses DIO2 pin to control the RXEN and TXEN pins
+     *
+     * @return true Behaviour set
+     * @return false Failed to set behaviour
+     */
+    bool configure_tx_rx_switching();
+    /**
+     * @brief Configure sx126x based radios so that micro controller controls the RXEN and TXEN pins
+     *
+     * @param RX_ENABLE RX enable pin
+     * @param TX_ENABLE TX enable pin
+     * @return true Behaviour set
+     * @return false Failed to set behaviour
+     */
+    bool configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE);
+
+    /**
      * @brief Return radio initialization status
      *
      * @return true If radio is initialized

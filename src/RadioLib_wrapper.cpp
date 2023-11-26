@@ -91,6 +91,39 @@ bool RadioLib_Wrapper<T>::configure_radio(float FREQUENCY, int TXPOWER, int SPRE
 
     return true;
 }
+// There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
+//  SX1268 implementation
+template <>
+bool RadioLib_Wrapper<SX1268>::configure_tx_rx_switching()
+{
+    if (radio.setDio2AsRfSwitch(true) != RADIOLIB_ERR_NONE)
+    {
+        return false;
+    }
+    return true;
+}
+template <>
+bool RadioLib_Wrapper<SX1268>::configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE)
+{
+    radio.setRfSwitchPins(RX_ENABLE, TX_ENABLE);
+    return true;
+}
+// SX1262 implementation
+template <>
+bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching()
+{
+    if (radio.setDio2AsRfSwitch(true) != RADIOLIB_ERR_NONE)
+    {
+        return false;
+    }
+    return true;
+}
+template <>
+bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE)
+{
+    radio.setRfSwitchPins(RX_ENABLE, TX_ENABLE);
+    return true;
+}
 
 template <typename T>
 bool RadioLib_Wrapper<T>::status()
