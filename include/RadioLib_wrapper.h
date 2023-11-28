@@ -26,7 +26,58 @@ private:
      */
     String type_name();
 
+    /**
+     * @brief Configure sx126x based radios so that the chip uses DIO2 pin to control the RXEN and TXEN pins
+     *
+     * @return true Behaviour set
+     * @return false Failed to set behaviour
+     */
+    bool configure_tx_rx_switching();
+    /**
+     * @brief Configure sx126x based radios so that micro controller controls the RXEN and TXEN pins
+     *
+     * @param RX_ENABLE RX enable pin
+     * @param TX_ENABLE TX enable pin
+     * @return true Behaviour set
+     * @return false Failed to set behaviour
+     */
+    bool configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE);
+
 public:
+    // Config file
+    struct RADIO_CONFIG
+    {
+        enum CHIP_FAMILY
+        {
+            SX126X,
+            SX127X,
+            SX128X,
+            RFM9X,
+        };
+        enum RF_SWITCHING
+        {
+            DIO2,     // rx_enable tx_enable controlled by radio chip using DIO2
+            GPIO,     // rx_enable tx_enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
+            DISABLED, // rx_enable
+        };
+
+        const float FREQUENCY = -1;
+        const int CS = -1;
+        const int DIO0 = -1;
+        const int DIO1 = -1;
+        const CHIP_FAMILY FAMILY = -1; // example: CHIP_FAMILY::SX126x
+        RF_SWITCHING rf_switching = 0; // if == GPIO. define RX_enable TX_enable gpio pins. Currently setup only for sx126x loras
+        const int RX_ENABLE = 0;       // only needed if rf_switching = gpio
+        const int TX_ENABLE = 0;       // only needed if rf_switching = gpio
+
+        const int RESET = -1;     //
+        const int SYNC_WORD = -1; //
+        const int TXPOWER = -1;   // in dBm
+        const int SPREADING = -1;
+        const int CODING_RATE = -1;
+        const float SIGNAL_BW = -1;     // in khz
+        const HardwareSPI *SPI_BUS = 0; // Example &SPI
+    };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
 
@@ -53,44 +104,18 @@ public:
     /**
      * @brief Creates a new RadioLib wrapper and initialize the radio module
      *
-     * @param CS Chip select
-     * @param DIO0 DIO0 pin (Busy)
-     * @param RESET Reset pin
-     * @param DIO1 DIO1 pin
-     * @param SPI_BUS used SPI bus
+     * @param radio_config Radio config file to be used
      */
-    RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1, HardwareSPI *SPI_BUS);
+    RadioLib_Wrapper(RADIO_CONFIG radio_config);
 
     /**
-     * @brief Configure radio module with given settings
+     * @brief Configure radio module modulation parameters (frequency, power, etc.) for exact things that are set check the function
      *
-     * @param FREQUENCY Frequency to be used
-     * @param TXPOWER Tranmission power
-     * @param SPREADING Spreading factor
-     * @param CODING_RATE Coding rate
-     * @param SIGNAL_BW Signal bandwidth
-     * @param SYNC_WORD Sync word
+     * @param radio_config Radio config file to be used
      * @return true If configured successfully
      * @return false If not configured successfully
      */
-    bool configure_radio(float FREQUENCY, int TXPOWER, int SPREADING, int CODING_RATE, float SIGNAL_BW, int SYNC_WORD);
-
-    /**
-     * @brief Configure sx126x based radios so that the chip uses DIO2 pin to control the RXEN and TXEN pins
-     *
-     * @return true Behaviour set
-     * @return false Failed to set behaviour
-     */
-    bool configure_tx_rx_switching();
-    /**
-     * @brief Configure sx126x based radios so that micro controller controls the RXEN and TXEN pins
-     *
-     * @param RX_ENABLE RX enable pin
-     * @param TX_ENABLE TX enable pin
-     * @return true Behaviour set
-     * @return false Failed to set behaviour
-     */
-    bool configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE);
+    bool configure_radio(RADIO_CONFIG radio_config);
 
     /**
      * @brief Return radio initialization status

@@ -25,11 +25,16 @@ String RadioLib_Wrapper<T>::type_name()
 }
 
 template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1, HardwareSPI *SPI_BUS)
+RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
 {
     // Create new LoRa object
-    radio = new Module(CS, DIO0, RESET, DIO1, *SPI_BUS);
-
+    // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
+    if (radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX126X || radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX128X)
+        radio = new Module(CS, DIO1, RESET, DIO0, *SPI_BUS);
+    else
+    {
+        radio = new Module(CS, DIO0, RESET, DIO1, *SPI_BUS);
+    }
     // Save the name of the radio type
     radio_typename = type_name();
 
@@ -51,7 +56,7 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(int CS, int DIO0, int RESET, int DIO1, Har
 }
 
 template <typename T>
-bool RadioLib_Wrapper<T>::configure_radio(float FREQUENCY, int TXPOWER, int SPREADING, int CODING_RATE, float SIGNAL_BW, int SYNC_WORD)
+bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
 {
     if (radio.setFrequency(FREQUENCY) == RADIOLIB_ERR_INVALID_FREQUENCY)
     {
@@ -88,6 +93,23 @@ bool RadioLib_Wrapper<T>::configure_radio(float FREQUENCY, int TXPOWER, int SPRE
         Serial.println(radio_typename + " Sync word is invalid: " + String(SYNC_WORD));
         return false;
     };
+
+    if (radio_config.rf_switching == RADIO_CONFIG::RF_SWITCHING::GPIO)
+    {
+        if (bool state = configure_tx_rx_switching(radio_config.RX_ENABLE, radio_config.TX_ENABLE != true))
+        {
+            Serial.println(radio_typename + " rf switching setup is invalid: GPIO");
+            return false;
+        }
+    }
+    else if (radio_config.rf_switching == RADIO_CONFIG::RF_SWITCHING::DIO2)
+    {
+        if (bool state = configure_tx_rx_switching() != true)
+        {
+            Serial.println(radio_typename + " rf switching setup is invalid: DIO2"));
+            return false;
+        }
+    }
 
     return true;
 }
@@ -202,6 +224,11 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
     }
     else
     {
+        // finish transmit from last time
+        if (state.action_type == State::Action_Type::TRANSMIT)
+        {
+            radio.finishTransmit();
+        }
         // else reset flag
         action_done = false;
     }
@@ -218,9 +245,6 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
     msg = str;
     rssi = radio.getRSSI();
     snr = radio.getSNR();
-
-    // Clean up from the previous time
-    radio.finishTransmit();
 
     // Restart receiving
     radio.startReceive();
