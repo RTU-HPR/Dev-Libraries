@@ -257,6 +257,61 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
 
     return true;
 }
+template <typename T>
+void RadioLib_Wrapper<T>::add_checksum(String &msg)
+{
+    int sum = 0;
+
+    // Calculate the sum of individual character values in the message
+    for (size_t i = 0; i < msg.length(); i++)
+    {
+        sum += msg.charAt(id_t);
+    }
+
+    // Convert the sum to a string with a fixed length of check_sum_length
+    String checksum = String(sum);
+    while (checksum.length() < check_sum_length)
+    {
+        checksum = "0" + checksum; // Padding with leading zeros if needed
+    }
+
+    // Append the calculated checksum to the original message
+    msg += checksum;
+}
+template <typename T>
+bool RadioLib_Wrapper<T>::check_checksum(String &msg)
+{
+    // Extract the provided checksum from the message
+    String provided_checksum = msg.substring(msg.length() - check_sum_length);
+
+    // Extract the original content of the message (excluding the checksum)
+    String original_msg = msg.substring(0, msg.length() - check_sum_length);
+
+    int sum = 0;
+    for (size_t i = 0; i < original_msg.length(); i++)
+    {
+        sum += original_msg.charAt(i); // Summing up individual character values
+    }
+
+    String calculated_checksum = String(sum); // Calculate checksum from the original message
+
+    // Make sure calculated checksum length is correct
+    while (calculated_checksum.length() < check_sum_length)
+    {
+        calculated_checksum = "0" + calculated_checksum; // Padding with leading zeros if necessary
+    }
+
+    // Compare the calculated checksum with the provided checksum
+    if (calculated_checksum.equals(provided_checksum))
+    {
+        msg = original_msg; // Remove the checksum from the original message
+        return true;        // Checksum verified
+    }
+    else
+    {
+        return false; // Checksum couldn't be verified
+    }
+}
 
 template <typename T>
 bool RadioLib_Wrapper<T>::test_transmit()

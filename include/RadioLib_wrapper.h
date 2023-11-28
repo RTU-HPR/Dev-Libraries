@@ -16,6 +16,8 @@ template <typename T>
 class RadioLib_Wrapper
 {
 private:
+    const int check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+
     /**
      * @brief Return a string with the name of the used radio type
      *
@@ -144,6 +146,21 @@ public:
      * @return false If receive failed or no message was received
      */
     bool receive(String &msg, float &rssi, float &snr);
+
+    /**
+     * @brief Modifies the original msg to add the checksum
+     *
+     * @param msg sendable packet msg that will be modified
+     */
+    void add_checksum(String &msg);
+    /**
+     * @brief
+     *
+     * @param msg sendable packet msg that will be checked. If verified the check sum is removed from the original
+     * @return true the msg is verified and the check sum is removed from the original
+     * @return false the msg couldn't be verified and msg is left as is
+     */
+    bool check_checksum(String &msg);
 
     /**
      * @brief Transmit a test message
