@@ -30,10 +30,10 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
     // Create new LoRa object
     // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
     if (radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX126X || radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX128X)
-        radio = new Module(CS, DIO1, RESET, DIO0, *SPI_BUS);
+        radio = new Module(radio_config.CS, radio_config.DIO1, radio_config.RESET, radio_config.DIO0, *(radio_config.SPI_BUS));
     else
     {
-        radio = new Module(CS, DIO0, RESET, DIO1, *SPI_BUS);
+        radio = new Module(radio_config.CS, radio_config.DIO0, radio_config.RESET, radio_config.DIO1, *(radio_config.SPI_BUS));
     }
     // Save the name of the radio type
     radio_typename = type_name();
@@ -58,39 +58,39 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
 template <typename T>
 bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
 {
-    if (radio.setFrequency(FREQUENCY) == RADIOLIB_ERR_INVALID_FREQUENCY)
+    if (radio.setFrequency(radio_config.FREQUENCY) == RADIOLIB_ERR_INVALID_FREQUENCY)
     {
-        Serial.println(radio_typename + " Frequency is invalid: " + String(FREQUENCY));
+        Serial.println(radio_typename + " Frequency is invalid: " + String(radio_config.FREQUENCY));
         return false;
     };
 
-    if (radio.setOutputPower(TXPOWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER)
+    if (radio.setOutputPower(radio_config.TXPOWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER)
     {
-        Serial.println(radio_typename + " Transmit power is invalid: " + String(TXPOWER));
+        Serial.println(radio_typename + " Transmit power is invalid: " + String(radio_config.TXPOWER));
         return false;
     };
 
-    if (radio.setSpreadingFactor(SPREADING) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR)
+    if (radio.setSpreadingFactor(radio_config.SPREADING) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR)
     {
-        Serial.println(radio_typename + " Spreading factor is invalid: " + String(SPREADING));
+        Serial.println(radio_typename + " Spreading factor is invalid: " + String(radio_config.SPREADING));
         return false;
     };
 
-    if (radio.setCodingRate(CODING_RATE) == RADIOLIB_ERR_INVALID_CODING_RATE)
+    if (radio.setCodingRate(radio_config.CODING_RATE) == RADIOLIB_ERR_INVALID_CODING_RATE)
     {
-        Serial.println(radio_typename + " Coding rate is invalid: " + String(CODING_RATE));
+        Serial.println(radio_typename + " Coding rate is invalid: " + String(radio_config.CODING_RATE));
         return false;
     };
 
-    if (radio.setBandwidth(SIGNAL_BW) == RADIOLIB_ERR_INVALID_BANDWIDTH)
+    if (radio.setBandwidth(radio_config.SIGNAL_BW) == RADIOLIB_ERR_INVALID_BANDWIDTH)
     {
-        Serial.println(radio_typename + " Signal bandwidth is invalid: " + String(SIGNAL_BW));
+        Serial.println(radio_typename + " Signal bandwidth is invalid: " + String(radio_config.SIGNAL_BW));
         return false;
     };
 
-    if (radio.setSyncWord(SYNC_WORD) == RADIOLIB_ERR_INVALID_SYNC_WORD)
+    if (radio.setSyncWord(radio_config.SYNC_WORD) == RADIOLIB_ERR_INVALID_SYNC_WORD)
     {
-        Serial.println(radio_typename + " Sync word is invalid: " + String(SYNC_WORD));
+        Serial.println(radio_typename + " Sync word is invalid: " + String(radio_config.SYNC_WORD));
         return false;
     };
 
@@ -106,7 +106,7 @@ bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
     {
         if (bool state = configure_tx_rx_switching() != true)
         {
-            Serial.println(radio_typename + " rf switching setup is invalid: DIO2"));
+            Serial.println(radio_typename + " rf switching setup is invalid: DIO2");
             return false;
         }
     }

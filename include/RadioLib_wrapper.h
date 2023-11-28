@@ -75,8 +75,8 @@ public:
         const int TXPOWER = -1;   // in dBm
         const int SPREADING = -1;
         const int CODING_RATE = -1;
-        const float SIGNAL_BW = -1;     // in khz
-        const HardwareSPI *SPI_BUS = 0; // Example &SPI
+        const float SIGNAL_BW = -1; // in khz
+        HardwareSPI *SPI_BUS = 0;   // Example &SPI
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
