@@ -230,8 +230,6 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
     radio.standby();
     if (state.action_type == State::Action_Type::RECEIVE)
     {
-        Serial.println("2");
-
         // Try to read received data
         String str = "";
         state.action_status_code = radio.readData(str);
