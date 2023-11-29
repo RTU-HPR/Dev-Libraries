@@ -175,7 +175,6 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     // if radio did something that is not sending data before and it hasn't timedout. Time it out
     if (!action_done && state.action_type != State::Action_Type::TRANSMIT)
     {
-        radio.standby();
         action_done = true;
     }
 
@@ -224,14 +223,12 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
     }
     else
     {
-        // finish transmit from last time
-        if (state.action_type == State::Action_Type::TRANSMIT)
-        {
-            radio.finishTransmit();
-        }
         // else reset flag
         action_done = false;
     }
+
+    // Put into standby to try reading data
+    radio.standby();
 
     // Try to read received data
     String str = "";
