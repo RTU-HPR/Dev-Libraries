@@ -1,7 +1,7 @@
 #include "RadioLib_wrapper.h"
 
 // Flags for radio interrupt functions
-volatile bool action_done = false;
+volatile bool action_done = true;
 
 /*
 If compiling for ESP boards, specify that these function are used within interrupt routine
@@ -226,32 +226,33 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
         // else reset flag
         action_done = false;
     }
-
     // Put into standby to try reading data
     radio.standby();
-
-    // Try to read received data
-    String str = "";
-    state.action_status_code = radio.readData(str);
-
-    if (state.action_status_code != RADIOLIB_ERR_NONE)
+    if (state.action_type == State::Action_Type::RECEIVE)
     {
-        Serial.println(radio_typename + " Receiving failed with status code: " + String(state.action_status_code));
+        Serial.println("2");
+
+        // Try to read received data
+        String str = "";
+        state.action_status_code = radio.readData(str);
+
+        if (state.action_status_code != RADIOLIB_ERR_NONE)
+        {
+            Serial.println(radio_typename + " Receiving failed with status code: " + String(state.action_status_code));
+        }
+
+        msg = str;
+        rssi = radio.getRSSI();
+        snr = radio.getSNR();
     }
-
-    msg = str;
-    rssi = radio.getRSSI();
-    snr = radio.getSNR();
-
-    // Restart receiving
+    // Restart receiving TODO add error check for start recieve
     radio.startReceive();
-
+    state.action_type = State::Action_Type::RECEIVE;
     // If haven't recieved anything return false;
     if (msg == "")
     {
         return false;
     }
-
     return true;
 }
 template <typename T>
@@ -262,7 +263,7 @@ void RadioLib_Wrapper<T>::add_checksum(String &msg)
     // Calculate the sum of individual character values in the message
     for (size_t i = 0; i < msg.length(); i++)
     {
-        sum += msg.charAt(id_t);
+        sum += msg.charAt(i);
     }
 
     // Convert the sum to a string with a fixed length of check_sum_length
