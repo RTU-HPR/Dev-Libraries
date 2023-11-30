@@ -174,6 +174,7 @@ public:
 
     /**
      * @brief Set the error output function object. If not set by default error will be output in serial port.
+     * Note that if the function is inside a class then passing it to the set error output might be difficult
      *
      * @param func pointer to a function that you can pass the error string
      */
