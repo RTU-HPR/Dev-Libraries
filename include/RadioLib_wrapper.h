@@ -16,7 +16,9 @@ template <typename T>
 class RadioLib_Wrapper
 {
 private:
-    const int check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    const int _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+
+    void (*_error_function)(String) = nullptr;
 
     /**
      * @brief Return a string with the name of the used radio type
@@ -35,6 +37,7 @@ private:
      * @return false Failed to set behaviour
      */
     bool configure_tx_rx_switching();
+
     /**
      * @brief Configure sx126x based radios so that micro controller controls the RXEN and TXEN pins
      *
@@ -44,6 +47,13 @@ private:
      * @return false Failed to set behaviour
      */
     bool configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE);
+
+    /**
+     * @brief Prints error msg either using specified function set by set_error_function or by default uses serial.println
+     *
+     * @param error_msg
+     */
+    void error(String error_msg);
 
 public:
     // Config file
@@ -161,6 +171,13 @@ public:
      * @return false the msg couldn't be verified and msg is left as is
      */
     bool check_checksum(String &msg);
+
+    /**
+     * @brief Set the error output function object. If not set by default error will be output in serial port.
+     *
+     * @param func pointer to a function that you can pass the error string
+     */
+    void set_error_output_function(void (*error_function)(String));
 
     /**
      * @brief Transmit a test message

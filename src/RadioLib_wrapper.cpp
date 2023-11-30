@@ -44,7 +44,7 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
     // If initialization failed, print error
     if (state.action_status_code != RADIOLIB_ERR_NONE)
     {
-        Serial.println(radio_typename + " initialization failed with status code: " + String(state.action_status_code));
+        error("Initialization failed with status code: " + String(state.action_status_code));
         return;
     }
     // Set interrupt behaviour
@@ -60,37 +60,37 @@ bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
 {
     if (radio.setFrequency(radio_config.FREQUENCY) == RADIOLIB_ERR_INVALID_FREQUENCY)
     {
-        Serial.println(radio_typename + " Frequency is invalid: " + String(radio_config.FREQUENCY));
+        error("Frequency is invalid: " + String(radio_config.FREQUENCY));
         return false;
     };
 
     if (radio.setOutputPower(radio_config.TXPOWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER)
     {
-        Serial.println(radio_typename + " Transmit power is invalid: " + String(radio_config.TXPOWER));
+        error("Transmit power is invalid: " + String(radio_config.TXPOWER));
         return false;
     };
 
     if (radio.setSpreadingFactor(radio_config.SPREADING) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR)
     {
-        Serial.println(radio_typename + " Spreading factor is invalid: " + String(radio_config.SPREADING));
+        error("Spreading factor is invalid: " + String(radio_config.SPREADING));
         return false;
     };
 
     if (radio.setCodingRate(radio_config.CODING_RATE) == RADIOLIB_ERR_INVALID_CODING_RATE)
     {
-        Serial.println(radio_typename + " Coding rate is invalid: " + String(radio_config.CODING_RATE));
+        error("Coding rate is invalid: " + String(radio_config.CODING_RATE));
         return false;
     };
 
     if (radio.setBandwidth(radio_config.SIGNAL_BW) == RADIOLIB_ERR_INVALID_BANDWIDTH)
     {
-        Serial.println(radio_typename + " Signal bandwidth is invalid: " + String(radio_config.SIGNAL_BW));
+        error("Signal bandwidth is invalid: " + String(radio_config.SIGNAL_BW));
         return false;
     };
 
     if (radio.setSyncWord(radio_config.SYNC_WORD) == RADIOLIB_ERR_INVALID_SYNC_WORD)
     {
-        Serial.println(radio_typename + " Sync word is invalid: " + String(radio_config.SYNC_WORD));
+        error("Sync word is invalid: " + String(radio_config.SYNC_WORD));
         return false;
     };
 
@@ -98,7 +98,7 @@ bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
     {
         if (bool state = configure_tx_rx_switching(radio_config.RX_ENABLE, radio_config.TX_ENABLE != true))
         {
-            Serial.println(radio_typename + " rf switching setup is invalid: GPIO");
+            error("RF switching setup is invalid: GPIO");
             return false;
         }
     }
@@ -106,13 +106,34 @@ bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
     {
         if (bool state = configure_tx_rx_switching() != true)
         {
-            Serial.println(radio_typename + " rf switching setup is invalid: DIO2");
+            error("RF switching setup is invalid: DIO2");
             return false;
         }
     }
 
     return true;
 }
+template <typename T>
+void RadioLib_Wrapper<T>::set_error_output_function(void (*error_function)(String))
+{
+    _error_function = &error_function;
+}
+
+template <typename T>
+void RadioLib_Wrapper<T>::error(String error_msg)
+{
+    error_msg = "RadioLib " + radio_typename + " Error: " + error_msg;
+
+    if (_error_function == nullptr)
+    {
+        Serial.println(error_msg);
+    }
+    else
+    {
+        _error_function(error_msg);
+    }
+}
+
 // There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
 // general implementation
 template <typename T>
@@ -198,7 +219,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     // If transmit failed, print error
     if (state.action_status_code != RADIOLIB_ERR_NONE)
     {
-        Serial.println(radio_typename + " Starting transmit failed with status code:" + String(state.action_status_code));
+        error(" Starting transmit failed with status code:" + String(state.action_status_code));
         return false;
     }
     // set last action to transmit
@@ -236,7 +257,7 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
 
         if (state.action_status_code != RADIOLIB_ERR_NONE)
         {
-            Serial.println(radio_typename + " Receiving failed with status code: " + String(state.action_status_code));
+            error("Receiving failed with status code: " + String(state.action_status_code));
         }
 
         msg = str;
@@ -266,7 +287,7 @@ void RadioLib_Wrapper<T>::add_checksum(String &msg)
 
     // Convert the sum to a string with a fixed length of check_sum_length
     String checksum = String(sum);
-    while (checksum.length() < check_sum_length)
+    while (checksum.length() < _check_sum_length)
     {
         checksum = "0" + checksum; // Padding with leading zeros if needed
     }
@@ -278,10 +299,10 @@ template <typename T>
 bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 {
     // Extract the provided checksum from the message
-    String provided_checksum = msg.substring(msg.length() - check_sum_length);
+    String provided_checksum = msg.substring(msg.length() - _check_sum_length);
 
     // Extract the original content of the message (excluding the checksum)
-    String original_msg = msg.substring(0, msg.length() - check_sum_length);
+    String original_msg = msg.substring(0, msg.length() - _check_sum_length);
 
     int sum = 0;
     for (size_t i = 0; i < original_msg.length(); i++)
@@ -292,7 +313,7 @@ bool RadioLib_Wrapper<T>::check_checksum(String &msg)
     String calculated_checksum = String(sum); // Calculate checksum from the original message
 
     // Make sure calculated checksum length is correct
-    while (calculated_checksum.length() < check_sum_length)
+    while (calculated_checksum.length() < _check_sum_length)
     {
         calculated_checksum = "0" + calculated_checksum; // Padding with leading zeros if necessary
     }
@@ -317,11 +338,9 @@ bool RadioLib_Wrapper<T>::test_transmit()
     // Try to transmit the test message
     if (radio.transmit(msg))
     {
-        Serial.println(radio_typename + " Test transmission failed");
-        Serial.println("Setting radio as not initialized");
+        error("Test transmission failed. Setting radio as not initialized!");
+        state.initialized = false;
         return false;
     }
-
-    Serial.println(radio_typename + " Test transmission was successful");
     return true;
 }
