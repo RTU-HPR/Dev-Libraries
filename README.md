@@ -4,7 +4,7 @@ Main repository for RTU HPR Team libraries
 # RadioLib_Wrapper
 ## Tested radio modules
 - RFM96W - Everything works as expected
-- SX1268 - Not working currently
+- SX1268 - Everything works as expected
 
 
 # Ranging_Wrapper
