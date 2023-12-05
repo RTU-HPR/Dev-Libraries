@@ -46,6 +46,7 @@ RadioLib_Wrapper<radio_module> radio = RadioLib_Wrapper<radio_module>(radio_conf
 
 // Ping pong
 bool should_transmit = true;
+int message_index = 1;
 int WAIT_FOR_RECEIVE = 5000;
 unsigned long last_transmit_time = 0;
 
@@ -96,7 +97,11 @@ void loop()
   // If nothing has been received in the defined time period, transmit a message
   if (should_transmit || millis() - last_transmit_time > WAIT_FOR_RECEIVE)
   {
-    radio.transmit(msg);
+    String tx_message = "Ping pong message " + String(message_index);
+    radio.add_checksum(tx_message);
+    radio.transmit(tx_message);
+      
+    message_index ++;
     should_transmit = false;
     last_transmit_time = millis();
   }
