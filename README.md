@@ -1,6 +1,8 @@
 # Dev-Libraries
 Main repository for RTU HPR Team libraries
 
+# Usgae
+### Add **https://github.com/RTU-HPR/Dev-Libraries** to lib_deps in *platformio.ini* file
 # RadioLib_Wrapper
 ## Tested radio modules
 - RFM96W - Everything works as expected
