@@ -52,57 +52,57 @@ unsigned long last_transmit_time = 0;
 
 void setup()
 {
-  // Configure and begin SPI bus
-  SPI.setRX(SPI_RX);
-  SPI.setTX(SPI_TX);
-  SPI.setSCK(SPI_SCK);
-  SPI.begin();
+    // Configure and begin SPI bus
+    SPI.setRX(SPI_RX);
+    SPI.setTX(SPI_TX);
+    SPI.setSCK(SPI_SCK);
+    SPI.begin();
 
-  // Configure radio module
-  if (!radio.configure_radio(radio_config))
-  {
-    while (true)
+    // Configure radio module
+    if (!radio.configure_radio(radio_config))
     {
-      Serial.println("Configuring LoRa failed");
-      delay(5000);
+        while (true)
+        {
+            Serial.println("Configuring LoRa failed");
+            delay(5000);
+        }
     }
-  }
 
-  // If required a test message can be transmitted
-  // radio.test_transmit();
+    // If required a test message can be transmitted
+    // radio.test_transmit();
 }
 
 void loop()
 {
-  // Variables to store the received data
-  String msg = "";
-  float rssi = 0;
-  float snr = 0;
+    // Variables to store the received data
+    String msg = "";
+    float rssi = 0;
+    float snr = 0;
 
-  // Check if anything has been received
-  if (radio.receive(msg, rssi, snr))
-  {
-    // Check if checksum matches
-    if (radio.check_checksum(msg))
+    // Check if anything has been received
+    if (radio.receive(msg, rssi, snr))
     {
-      Serial.println("LoRa received: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
+        // Check if checksum matches
+        if (radio.check_checksum(msg))
+        {
+            Serial.println("LoRa received: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
+        }
+        else
+        {
+            Serial.println("LoRa received with checksum fail: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
+        }
+        should_transmit = true;
     }
-    else
-    {
-      Serial.println("LoRa received with checksum fail: " + msg + " | RSSI: " + rssi + "| SNR: " + snr);
-    }
-    should_transmit = true;
-  }
 
-  // If nothing has been received in the defined time period, transmit a message
-  if (should_transmit || millis() - last_transmit_time > WAIT_FOR_RECEIVE)
-  {
-    String tx_message = "Ping pong message " + String(message_index);
-    radio.add_checksum(tx_message);
-    radio.transmit(tx_message);
-      
-    message_index ++;
-    should_transmit = false;
-    last_transmit_time = millis();
-  }
+    // If nothing has been received in the defined time period, transmit a message
+    if (should_transmit || millis() - last_transmit_time > WAIT_FOR_RECEIVE)
+    {
+        String tx_message = "Ping pong message " + String(message_index);
+        radio.add_checksum(tx_message);
+        radio.transmit(tx_message);
+
+        message_index++;
+        should_transmit = false;
+        last_transmit_time = millis();
+    }
 }
