@@ -16,9 +16,9 @@ template <typename T>
 class RadioLib_Wrapper
 {
 private:
-    const int _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    const int _check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
 
-    void (*_error_function)(String) = nullptr;
+    void (*_error_function)(String);
 
     /**
      * @brief Return a string with the name of the used radio type
@@ -73,22 +73,22 @@ public:
             DISABLED, // rx_enable
         };
 
-        const float FREQUENCY = -1;
-        const int CS = -1;
-        const int DIO0 = -1;
-        const int DIO1 = -1;
-        const CHIP_FAMILY FAMILY = -1; // example: CHIP_FAMILY::SX126x
-        RF_SWITCHING rf_switching = 0; // if == GPIO. define RX_enable TX_enable gpio pins. Currently setup only for sx126x loras
-        const int RX_ENABLE = 0;       // only needed if rf_switching = gpio
-        const int TX_ENABLE = 0;       // only needed if rf_switching = gpio
+        const float FREQUENCY;
+        const int CS;
+        const int DIO0;
+        const int DIO1;
+        const CHIP_FAMILY FAMILY;  // example: CHIP_FAMILY::SX126x
+        RF_SWITCHING rf_switching; // if == GPIO. define RX_enable TX_enable gpio pins. Currently setup only for sx126x loras
+        const int RX_ENABLE;       // only needed if rf_switching = gpio
+        const int TX_ENABLE;       // only needed if rf_switching = gpio
 
-        const int RESET = -1;     //
-        const int SYNC_WORD = -1; //
-        const int TXPOWER = -1;   // in dBm
-        const int SPREADING = -1;
-        const int CODING_RATE = -1;
-        const float SIGNAL_BW = -1; // in khz
-        HardwareSPI *SPI_BUS = 0;   // Example &SPI
+        const int RESET;     //
+        const int SYNC_WORD; //
+        const int TXPOWER;   // in dBm
+        const int SPREADING;
+        const int CODING_RATE;
+        const float SIGNAL_BW; // in khz
+        SPIClass *SPI_BUS;     // Example &SPI
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
@@ -116,9 +116,18 @@ public:
     /**
      * @brief Creates a new RadioLib wrapper and initialize the radio module
      *
-     * @param radio_config Radio config file to be used
+     * @param
      */
-    RadioLib_Wrapper(RADIO_CONFIG radio_config);
+    RadioLib_Wrapper();
+
+    /**
+     * @brief Creates a new RadioLib wrapper and initialize the radio module
+     *
+     * @param error_function the callback that will be called when error occurs. if not needed use ovverride without this
+     */
+    RadioLib_Wrapper(void (*error_function)(String));
+
+    bool begin(RADIO_CONFIG radio_config);
 
     /**
      * @brief Configure radio module modulation parameters (frequency, power, etc.) for exact things that are set check the function

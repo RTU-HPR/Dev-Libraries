@@ -25,9 +25,24 @@ String RadioLib_Wrapper<T>::type_name()
 }
 
 template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
+RadioLib_Wrapper<T>::RadioLib_Wrapper()
 {
-    // Create new LoRa object
+    // setup default variables
+    _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    set_error_output_function(nullptr);
+}
+template <typename T>
+RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String))
+{
+    // setup default variables
+    _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    set_error_output_function(error_function);
+}
+
+template <typename T>
+bool RadioLib_Wrapper<T>::begin(RADIO_CONFIG radio_config)
+{
+    // Create new LoRa object  !!!! CURRENTLY WILL CAUSE A 4BYTE memory leak
     // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
     if (radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX126X || radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX128X)
         radio = new Module(radio_config.CS, radio_config.DIO1, radio_config.RESET, radio_config.DIO0, *(radio_config.SPI_BUS));
@@ -45,11 +60,17 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
     if (state.action_status_code != RADIOLIB_ERR_NONE)
     {
         error("Initialization failed with status code: " + String(state.action_status_code));
-        return;
+        return false;
     }
     // Set interrupt behaviour
     radio.setPacketReceivedAction(RadioLib_interrupts::set_action_done_flag);
     state.action_type = State::Action_Type::STANDBY;
+
+    if (configure_radio(radio_config) == false)
+    {
+        error("Radio begin failed!");
+        return false;
+    }
 
     // Set that radio has been initialized
     state.initialized = true;
