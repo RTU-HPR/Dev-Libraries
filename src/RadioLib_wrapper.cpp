@@ -33,21 +33,21 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_
     _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
     set_error_output_function(error_function);
     // Save the name of the radio type
-    radio_typename = type_name();
+    _radio_typename = type_name();
 }
 
 template <typename T>
 bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
-{   
+{
     // Set the used frequency to the inital one
-    used_frequency = radio_config.frequency;
-    if (radio_config.frequency_correction == Radio_Config::Frequency_Correction::Enabled)
+    _used_frequency = radio_config.frequency;
+    if (radio_config.frequency_correction)
     {
-        frequency_correction_enabled = true;
+        _frequency_correction_enabled = true;
     }
     else
     {
-        frequency_correction_enabled = false;
+        _frequency_correction_enabled = false;
     }
     // Create new LoRa object  !!!! CURRENTLY WILL CAUSE A 4BYTE memory leak
     // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
@@ -149,7 +149,7 @@ void RadioLib_Wrapper<T>::set_error_output_function(void (*error_function)(Strin
 template <typename T>
 void RadioLib_Wrapper<T>::error(String error_msg)
 {
-    error_msg = "RadioLib " + radio_typename + " Error: " + error_msg;
+    error_msg = "RadioLib " + _radio_typename + " Error: " + error_msg;
 
     if (_error_function == nullptr)
     {
@@ -290,17 +290,17 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
         msg = str;
         rssi = radio.getRSSI();
         snr = radio.getSNR();
-        frequency = used_frequency;
+        frequency = _used_frequency;
 
-        if (frequency_correction_enabled)
+        if (_frequency_correction_enabled)
         {
             // Frequency correction
             double freq_error = radio.getFrequencyError() / 1000000.0;
-            double new_freq = used_frequency - freq_error;
+            double new_freq = _used_frequency - freq_error;
             // Serial.println("Freq error: " + String(freq_error, 10) + " | Old freq: " + String(used_frequency, 10) + " | New freq: " + String(new_freq, 10));
-            used_frequency = new_freq;
             if (radio.setFrequency(new_freq) != RADIOLIB_ERR_INVALID_FREQUENCY)
             {
+                _used_frequency = new_freq;
                 frequency = new_freq;
             }
         }
@@ -374,7 +374,7 @@ bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::test_transmit()
 {
-    String msg = radio_typename + " Transmission test";
+    String msg = _radio_typename + " Transmission test";
 
     // Try to transmit the test message
     if (radio.transmit(msg))
