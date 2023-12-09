@@ -1,4 +1,5 @@
 #pragma once
+#ifdef RADIOLIB_WRAPPER_ENABLE
 #include <RadioLib.h>
 #include <Arduino.h>
 #include <SPI.h>
@@ -16,7 +17,7 @@ template <typename T>
 class RadioLib_Wrapper
 {
 private:
-    const int _check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    int _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
 
     void (*_error_function)(String);
 
@@ -41,12 +42,12 @@ private:
     /**
      * @brief Configure sx126x based radios so that micro controller controls the RXEN and TXEN pins
      *
-     * @param RX_ENABLE RX enable pin
-     * @param TX_ENABLE TX enable pin
+     * @param rx_enable RX enable pin
+     * @param tx_enable TX enable pin
      * @return true Behaviour set
      * @return false Failed to set behaviour
      */
-    bool configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE);
+    bool configure_tx_rx_switching(int rx_enable, int tx_enable);
 
     /**
      * @brief Prints error msg either using specified function set by set_error_function or by default uses serial.println
@@ -57,77 +58,84 @@ private:
 
 public:
     // Config file
-    struct RADIO_CONFIG
+    struct Radio_Config
     {
-        enum CHIP_FAMILY
+        enum Chip_Family
         {
-            SX126X,
-            SX127X,
-            SX128X,
-            RFM9X,
+            Sx126x,
+            Sx127x,
+            Sx128x,
+            Rfm9x
         };
-        enum RF_SWITCHING
+        enum Rf_Switching
         {
-            DIO2,     // rx_enable tx_enable controlled by radio chip using DIO2
-            GPIO,     // rx_enable tx_enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
-            DISABLED, // rx_enable
+            Dio2,    // rx_enable tx_enable controlled by radio chip using DIO2
+            Gpio,    // rx_enable tx_enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
+            Disabled // rx_enable
         };
 
-        const float FREQUENCY;
-        const int CS;
-        const int DIO0;
-        const int DIO1;
-        const CHIP_FAMILY FAMILY;  // example: CHIP_FAMILY::SX126x
-        RF_SWITCHING rf_switching; // if == GPIO. define RX_enable TX_enable gpio pins. Currently setup only for sx126x loras
-        const int RX_ENABLE;       // only needed if rf_switching = gpio
-        const int TX_ENABLE;       // only needed if rf_switching = gpio
+        const float frequency;
+        const int cs;
+        const int dio0;
+        const int dio1;
+        const Chip_Family family;  // example: CHIP_FAMILY::SX126x
+        Rf_Switching rf_switching; // if == GPIO. define RX_enable TX_enable gpio pins. Currently setup only for sx126x loras
+        const int rx_enable;       // only needed if rf_switching = gpio
+        const int tx_enable;       // only needed if rf_switching = gpio
 
-        const int RESET;     //
-        const int SYNC_WORD; //
-        const int TXPOWER;   // in dBm
-        const int SPREADING;
-        const int CODING_RATE;
-        const float SIGNAL_BW; // in khz
-        SPIClass *SPI_BUS;     // Example &SPI
+        const int reset;     //
+        const int sync_word; //
+        const int tx_power;  // in dBm
+        const int spreading;
+        const int coding_rate;
+        const float signal_bw; // in khz
+        SPIClass *spi_bus;     // Example &SPI
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
 
     // Radio module name
-    String radio_typename = "";
+    String radio_typename;
 
     // Radio state
     struct State
     {
-        bool initialized = false;
-        int action_status_code = RADIOLIB_ERR_NONE;
+        bool initialized;
+        int action_status_code;
 
         // Usually displays the last action the radio did
         enum Action_Type
         {
-            TRANSMIT,
-            RECEIVE,
-            STANDBY,
+            Transmit,
+            Receive,
+            Standby,
         };
-        Action_Type action_type = Action_Type::STANDBY;
+        Action_Type action_type;
+
+        State()
+        {
+            initialized = false;
+            action_status_code = RADIOLIB_ERR_NONE;
+            action_type = Action_Type::Standby;
+        };
     };
     State state;
 
     /**
      * @brief Creates a new RadioLib wrapper and initialize the radio module
      *
-     * @param
-     */
-    RadioLib_Wrapper();
-
-    /**
-     * @brief Creates a new RadioLib wrapper and initialize the radio module
-     *
      * @param error_function the callback that will be called when error occurs. if not needed use ovverride without this
      */
-    RadioLib_Wrapper(void (*error_function)(String));
+    RadioLib_Wrapper(void (*error_function)(String) = nullptr, int check_sum_length = 5);
 
-    bool begin(RADIO_CONFIG radio_config);
+    /**
+     * @brief
+     *
+     * @param radio_config Radio config file to be used
+     * @return true
+     * @return false
+     */
+    bool begin(Radio_Config radio_config);
 
     /**
      * @brief Configure radio module modulation parameters (frequency, power, etc.) for exact things that are set check the function
@@ -136,7 +144,7 @@ public:
      * @return true If configured successfully
      * @return false If not configured successfully
      */
-    bool configure_radio(RADIO_CONFIG radio_config);
+    bool configure_radio(Radio_Config radio_config);
 
     /**
      * @brief Return radio initialization status
@@ -212,5 +220,7 @@ template class RadioLib_Wrapper<SX1281>;
 template class RadioLib_Wrapper<SX1282>;
 
 // Selected RFM9x LoRa types
-template class RadioLib_Wrapper<RFM95>;
-template class RadioLib_Wrapper<RFM96>;
+// template class RadioLib_Wrapper<RFM95>;
+// template class RadioLib_Wrapper<RFM96>;
+
+#endif // RADIOLIB_WRAPPER_ENABLE

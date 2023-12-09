@@ -1,4 +1,7 @@
 #pragma once
+
+#ifdef RANGING_WRAPPER_ENABLE
+
 #include <RadioLib.h>
 
 class Ranging_Wrapper
@@ -52,7 +55,7 @@ public:
         int SPREADING;
         int CODING_RATE;
         float SIGNAL_BW;
-        SPIClassRP2040 *SPI;
+        SPIClass *SPI;
     };
     struct Ranging_Result
     {
@@ -83,3 +86,4 @@ public:
     bool trilaterate_position(Ranging_Result readings[3], Ranging_Slave slaves[3], Position &result);
     bool get_init_status();
 };
+#endif // RANGING_WRAPPER_ENABLE
