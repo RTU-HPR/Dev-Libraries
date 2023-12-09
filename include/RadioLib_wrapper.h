@@ -75,8 +75,8 @@ public:
         };
         enum Frequency_Correction
         {
-            Enabled;
-            Disabled;
+            Enabled,
+            Disabled
         };
 
         const float frequency;
@@ -97,7 +97,7 @@ public:
 
         Frequency_Correction frequency_correction;
 
-        SPIClass *spi_bus;     // Example &SPI
+        SPIClass *spi_bus; // Example &SPI
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
