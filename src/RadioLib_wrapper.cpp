@@ -41,6 +41,14 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
 {   
     // Set the used frequency to the inital one
     used_frequency = radio_config.frequency;
+    if (radio_config.frequency_correction == Radio_Config::Frequency_Correction::Enabled)
+    {
+        frequency_correction_enabled = true;
+    }
+    else
+    {
+        frequency_correction_enabled = false;
+    }
     // Create new LoRa object  !!!! CURRENTLY WILL CAUSE A 4BYTE memory leak
     // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
     if (radio_config.family == Radio_Config::Chip_Family::Sx126x || radio_config.family == Radio_Config::Chip_Family::Sx128x)
@@ -249,7 +257,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
 
 // Listen to messages over LoRa. Returns true if received successfully
 template <typename T>
-bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
+bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &frequency)
 {
     if (!state.initialized)
     {
@@ -282,13 +290,20 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
         msg = str;
         rssi = radio.getRSSI();
         snr = radio.getSNR();
-        
-        // Frequency correction
-        double freq_error = radio.getFrequencyError() / 1000000.0;
-        double new_freq = used_frequency - freq_error;
-        // Serial.println("Freq error: " + String(freq_error, 10) + " | Old freq: " + String(used_frequency, 10) + " | New freq: " + String(new_freq, 10));
-        used_frequency = new_freq;
-        radio.setFrequency(new_freq);
+        frequency = used_frequency;
+
+        if (frequency_correction_enabled)
+        {
+            // Frequency correction
+            double freq_error = radio.getFrequencyError() / 1000000.0;
+            double new_freq = used_frequency - freq_error;
+            // Serial.println("Freq error: " + String(freq_error, 10) + " | Old freq: " + String(used_frequency, 10) + " | New freq: " + String(new_freq, 10));
+            used_frequency = new_freq;
+            if (radio.setFrequency(new_freq) != RADIOLIB_ERR_INVALID_FREQUENCY)
+            {
+                frequency = new_freq;
+            }
+        }
     }
     // Restart receiving TODO add error check for start recieve
     radio.startReceive();
