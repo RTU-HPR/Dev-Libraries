@@ -73,11 +73,6 @@ public:
             Gpio,    // rx_enable tx_enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
             Disabled // rx_enable
         };
-        enum Frequency_Correction
-        {
-            Enabled,
-            Disabled
-        };
 
         const float frequency;
         const int cs;
@@ -95,7 +90,7 @@ public:
         const int coding_rate;
         const float signal_bw; // in khz
 
-        Frequency_Correction frequency_correction;
+        bool frequency_correction;
 
         SPIClass *spi_bus; // Example &SPI
     };
