@@ -1,3 +1,5 @@
+#ifdef RANGING_WRAPPER_ENABLE
+
 #include "ranging_wrapper.h"
 #include <math.h>
 
@@ -309,3 +311,5 @@ bool Ranging_Wrapper::get_init_status()
 {
     return _lora_initialized;
 }
+
+#endif // RANGING_WRAPPER_ENABLE

@@ -1,3 +1,5 @@
+#ifdef RADIOLIB_WRAPPER_ENABLE
+
 #include "RadioLib_wrapper.h"
 
 // Flags for radio interrupt functions
@@ -25,18 +27,28 @@ String RadioLib_Wrapper<T>::type_name()
 }
 
 template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
+RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length)
 {
-    // Create new LoRa object
-    // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
-    if (radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX126X || radio_config.FAMILY == RADIO_CONFIG::CHIP_FAMILY::SX128X)
-        radio = new Module(radio_config.CS, radio_config.DIO1, radio_config.RESET, radio_config.DIO0, *(radio_config.SPI_BUS));
-    else
-    {
-        radio = new Module(radio_config.CS, radio_config.DIO0, radio_config.RESET, radio_config.DIO1, *(radio_config.SPI_BUS));
-    }
+    // setup default variables
+    _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
+    set_error_output_function(error_function);
     // Save the name of the radio type
     radio_typename = type_name();
+}
+
+template <typename T>
+bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
+{   
+    // Set the used frequency to the inital one
+    used_frequency = radio_config.frequency;
+    // Create new LoRa object  !!!! CURRENTLY WILL CAUSE A 4BYTE memory leak
+    // Based on chip family the DIO0 or DIO1 gets sets set as IRQ
+    if (radio_config.family == Radio_Config::Chip_Family::Sx126x || radio_config.family == Radio_Config::Chip_Family::Sx128x)
+        radio = new Module(radio_config.cs, radio_config.dio1, radio_config.reset, radio_config.dio0, *(radio_config.spi_bus));
+    else
+    {
+        radio = new Module(radio_config.cs, radio_config.dio0, radio_config.reset, radio_config.dio1, *(radio_config.spi_bus));
+    }
 
     // Try to initialize communication with LoRa
     state.action_status_code = radio.begin();
@@ -45,64 +57,71 @@ RadioLib_Wrapper<T>::RadioLib_Wrapper(RADIO_CONFIG radio_config)
     if (state.action_status_code != RADIOLIB_ERR_NONE)
     {
         error("Initialization failed with status code: " + String(state.action_status_code));
-        return;
+        return false;
     }
     // Set interrupt behaviour
     radio.setPacketReceivedAction(RadioLib_interrupts::set_action_done_flag);
-    state.action_type = State::Action_Type::STANDBY;
+    state.action_type = State::Action_Type::Standby;
+
+    if (configure_radio(radio_config) == false)
+    {
+        error("Radio begin failed!");
+        return false;
+    }
 
     // Set that radio has been initialized
     state.initialized = true;
+    return true;
 }
 
 template <typename T>
-bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
+bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
 {
-    if (radio.setFrequency(radio_config.FREQUENCY) == RADIOLIB_ERR_INVALID_FREQUENCY)
+    if (radio.setFrequency(radio_config.frequency) == RADIOLIB_ERR_INVALID_FREQUENCY)
     {
-        error("Frequency is invalid: " + String(radio_config.FREQUENCY));
+        error("Frequency is invalid: " + String(radio_config.frequency));
         return false;
     };
 
-    if (radio.setOutputPower(radio_config.TXPOWER) == RADIOLIB_ERR_INVALID_OUTPUT_POWER)
+    if (radio.setOutputPower(radio_config.tx_power) == RADIOLIB_ERR_INVALID_OUTPUT_POWER)
     {
-        error("Transmit power is invalid: " + String(radio_config.TXPOWER));
+        error("Transmit power is invalid: " + String(radio_config.tx_power));
         return false;
     };
 
-    if (radio.setSpreadingFactor(radio_config.SPREADING) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR)
+    if (radio.setSpreadingFactor(radio_config.spreading) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR)
     {
-        error("Spreading factor is invalid: " + String(radio_config.SPREADING));
+        error("Spreading factor is invalid: " + String(radio_config.spreading));
         return false;
     };
 
-    if (radio.setCodingRate(radio_config.CODING_RATE) == RADIOLIB_ERR_INVALID_CODING_RATE)
+    if (radio.setCodingRate(radio_config.coding_rate) == RADIOLIB_ERR_INVALID_CODING_RATE)
     {
-        error("Coding rate is invalid: " + String(radio_config.CODING_RATE));
+        error("Coding rate is invalid: " + String(radio_config.coding_rate));
         return false;
     };
 
-    if (radio.setBandwidth(radio_config.SIGNAL_BW) == RADIOLIB_ERR_INVALID_BANDWIDTH)
+    if (radio.setBandwidth(radio_config.signal_bw) == RADIOLIB_ERR_INVALID_BANDWIDTH)
     {
-        error("Signal bandwidth is invalid: " + String(radio_config.SIGNAL_BW));
+        error("Signal bandwidth is invalid: " + String(radio_config.signal_bw));
         return false;
     };
 
-    if (radio.setSyncWord(radio_config.SYNC_WORD) == RADIOLIB_ERR_INVALID_SYNC_WORD)
+    if (radio.setSyncWord(radio_config.sync_word) == RADIOLIB_ERR_INVALID_SYNC_WORD)
     {
-        error("Sync word is invalid: " + String(radio_config.SYNC_WORD));
+        error("Sync word is invalid: " + String(radio_config.sync_word));
         return false;
     };
 
-    if (radio_config.rf_switching == RADIO_CONFIG::RF_SWITCHING::GPIO)
+    if (radio_config.rf_switching == Radio_Config::Rf_Switching::Gpio)
     {
-        if (bool state = configure_tx_rx_switching(radio_config.RX_ENABLE, radio_config.TX_ENABLE != true))
+        if (bool state = configure_tx_rx_switching(radio_config.rx_enable, radio_config.tx_enable != true))
         {
             error("RF switching setup is invalid: GPIO");
             return false;
         }
     }
-    else if (radio_config.rf_switching == RADIO_CONFIG::RF_SWITCHING::DIO2)
+    else if (radio_config.rf_switching == Radio_Config::Rf_Switching::Dio2)
     {
         if (bool state = configure_tx_rx_switching() != true)
         {
@@ -116,7 +135,7 @@ bool RadioLib_Wrapper<T>::configure_radio(RADIO_CONFIG radio_config)
 template <typename T>
 void RadioLib_Wrapper<T>::set_error_output_function(void (*error_function)(String))
 {
-    _error_function = &error_function;
+    _error_function = error_function;
 }
 
 template <typename T>
@@ -142,7 +161,7 @@ bool RadioLib_Wrapper<T>::configure_tx_rx_switching()
     return false;
 }
 template <typename T>
-bool RadioLib_Wrapper<T>::configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE)
+bool RadioLib_Wrapper<T>::configure_tx_rx_switching(int rx_enable, int tx_enable)
 {
     return false;
 }
@@ -157,9 +176,9 @@ bool RadioLib_Wrapper<SX1268>::configure_tx_rx_switching()
     return true;
 }
 template <>
-bool RadioLib_Wrapper<SX1268>::configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE)
+bool RadioLib_Wrapper<SX1268>::configure_tx_rx_switching(int rx_enable, int tx_enable)
 {
-    radio.setRfSwitchPins(RX_ENABLE, TX_ENABLE);
+    radio.setRfSwitchPins(rx_enable, tx_enable);
     return true;
 }
 // SX1262 implementation
@@ -173,9 +192,9 @@ bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching()
     return true;
 }
 template <>
-bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching(int RX_ENABLE, int TX_ENABLE)
+bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching(int rx_enable, int tx_enable)
 {
-    radio.setRfSwitchPins(RX_ENABLE, TX_ENABLE);
+    radio.setRfSwitchPins(rx_enable, tx_enable);
     return true;
 }
 
@@ -194,7 +213,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     }
 
     // if radio did something that is not sending data before and it hasn't timedout. Time it out
-    if (!action_done && state.action_type != State::Action_Type::TRANSMIT)
+    if (!action_done && state.action_type != State::Action_Type::Transmit)
     {
         action_done = true;
     }
@@ -223,7 +242,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
         return false;
     }
     // set last action to transmit
-    state.action_type = State::Action_Type::TRANSMIT;
+    state.action_type = State::Action_Type::Transmit;
 
     return true;
 }
@@ -249,7 +268,7 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
     }
     // Put into standby to try reading data
     radio.standby();
-    if (state.action_type == State::Action_Type::RECEIVE)
+    if (state.action_type == State::Action_Type::Receive)
     {
         // Try to read received data
         String str = "";
@@ -263,10 +282,17 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr)
         msg = str;
         rssi = radio.getRSSI();
         snr = radio.getSNR();
+        
+        // Frequency correction
+        double freq_error = radio.getFrequencyError() / 1000000.0;
+        double new_freq = used_frequency - freq_error;
+        // Serial.println("Freq error: " + String(freq_error, 10) + " | Old freq: " + String(used_frequency, 10) + " | New freq: " + String(new_freq, 10));
+        used_frequency = new_freq;
+        radio.setFrequency(new_freq);
     }
     // Restart receiving TODO add error check for start recieve
     radio.startReceive();
-    state.action_type = State::Action_Type::RECEIVE;
+    state.action_type = State::Action_Type::Receive;
     // If haven't recieved anything return false;
     if (msg == "")
     {
@@ -344,3 +370,5 @@ bool RadioLib_Wrapper<T>::test_transmit()
     }
     return true;
 }
+
+#endif // RADIOLIB_WRAPPER_ENABLE
