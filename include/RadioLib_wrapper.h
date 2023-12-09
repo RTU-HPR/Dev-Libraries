@@ -73,6 +73,11 @@ public:
             Gpio,    // rx_enable tx_enable controlled by micro controller GPIO pins (if this is set define RX_enable TX_enable gpio pins)
             Disabled // rx_enable
         };
+        enum Frequency_Correction
+        {
+            Enabled;
+            Disabled;
+        };
 
         const float frequency;
         const int cs;
@@ -89,12 +94,16 @@ public:
         const int spreading;
         const int coding_rate;
         const float signal_bw; // in khz
+
+        Frequency_Correction frequency_correction;
+
         SPIClass *spi_bus;     // Example &SPI
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
 
     // Current frequency used
+    bool frequency_correction_enabled;
     double used_frequency;
 
     // Radio module name
@@ -175,7 +184,7 @@ public:
      * @return true If a message was received
      * @return false If receive failed or no message was received
      */
-    bool receive(String &msg, float &rssi, float &snr);
+    bool receive(String &msg, float &rssi, float &snr, double &frequency);
 
     /**
      * @brief Modifies the original msg to add the checksum
