@@ -21,6 +21,13 @@ private:
 
     void (*_error_function)(String);
 
+    // Current frequency used
+    bool _frequency_correction_enabled;
+    double _used_frequency;
+
+    // Radio module name
+    String _radio_typename;
+
     /**
      * @brief Return a string with the name of the used radio type
      *
@@ -96,13 +103,6 @@ public:
     };
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
-
-    // Current frequency used
-    bool frequency_correction_enabled;
-    double used_frequency;
-
-    // Radio module name
-    String radio_typename;
 
     // Radio state
     struct State
