@@ -94,6 +94,9 @@ public:
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
 
+    // Current frequency used
+    double used_frequency;
+
     // Radio module name
     String radio_typename;
 
