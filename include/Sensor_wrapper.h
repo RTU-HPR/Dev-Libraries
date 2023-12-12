@@ -1,3 +1,4 @@
+#pragma once
 #include <Arduino.h>
 class Sensor_Wrapper
 {
@@ -12,7 +13,7 @@ public:
      *
      * @param func pointer to a function that you can pass the error string
      */
-    void set_error_output_function(void (*error_function)(String));
+    void set_error_output_function(void (*error_function)(String)) { _error_function = error_function; }
     void error(String msg);
 
     String get_sensor_name() { return _sensor_name; }

@@ -18,19 +18,11 @@ void RadioLib_interrupts::set_action_done_flag(void)
 }
 
 template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length)
+RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length, String sensor_name) : Sensor_Wrapper(sensor_name, error_function)
 {
     // setup default variables
     _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
     // Save the name of the radio type and set error function
-
-    String type_name = __PRETTY_FUNCTION__;
-    int start = type_name.indexOf("[with T = ") + 10;
-    int stop = type_name.lastIndexOf(']');
-    type_name.substring(start, stop);
-
-    Sensor_Wrapper(type_name, error_function);
-
     _action_status_code = RADIOLIB_ERR_NONE;
     _action_type = Action_Type::Standby;
 }
@@ -58,12 +50,12 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
     }
 
     // Try to initialize communication with LoRa
-    state.action_status_code = radio.begin();
+    _action_status_code = radio.begin();
 
     // If initialization failed, print error
-    if (state.action_status_code != RADIOLIB_ERR_NONE)
+    if (_action_status_code != RADIOLIB_ERR_NONE)
     {
-        error("Initialization failed with status code: " + String(state.action_status_code));
+        error("Initialization failed with status code: " + String(_action_status_code));
         return false;
     }
     // Set interrupt behaviour
@@ -355,7 +347,6 @@ bool RadioLib_Wrapper<T>::test_transmit()
         error("Test transmission failed. Setting radio as not initialized!");
         set_initialized(false);
         return false;
-        _initialized = true;
     }
     return true;
 }

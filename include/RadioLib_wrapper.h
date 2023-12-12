@@ -96,7 +96,7 @@ public:
      *
      * @param error_function the callback that will be called when error occurs. if not needed use ovverride without this
      */
-    RadioLib_Wrapper(void (*error_function)(String) = nullptr, int check_sum_length = 5);
+    RadioLib_Wrapper(void (*error_function)(String) = nullptr, int check_sum_length = 5, String sensor_name = "RadioLib_Default");
 
     /**
      * @brief
