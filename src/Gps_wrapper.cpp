@@ -8,29 +8,22 @@ bool Gps::begin(TwoWire &wire, int i2c_address = 0x42)
   {
   }
 
-  // Set the I2C port to output UBX only (turn off NMEA noise)
-  if (!_gps.setI2COutput(COM_TYPE_UBX))
-  {
-    Serial.println("GPS failed setting the I2C output");
-    return false;
-  }
-
   // How often (in ms) to update the GPS
-  if (_gps.setMeasurementRate(500))
+  if (!_gps.setMeasurementRate(500))
   {
     Serial.println("GPS failed setting the measurement rate");
     return false;
   }
   
   // Produce two solutions per second
-  if (_gps.setNavigationFrequency(2))
+  if (!_gps.setNavigationFrequency(2))
   {
     Serial.println("GPS failed setting the navigation frequency");
     return false;
   }
 
   // Tell the GNSS to "send" each solution
-  if (_gps.setAutoPVT(true))
+  if (!_gps.setAutoPVT(true))
   {
     Serial.println("GPS failed setting the auto PVT");
     return false;
@@ -87,29 +80,22 @@ bool Gps::begin(HardwareSerial &gps_serial, int gps_serial_rx, int gps_serial_tx
     }
   }
 
-  // Set the I2C port to output UBX only (turn off NMEA noise)
-  if (!_gps.setI2COutput(COM_TYPE_UBX))
-  {
-    Serial.println("GPS failed setting the I2C output");
-    return false;
-  }
-
   // How often (in ms) to update the GPS
-  if (_gps.setMeasurementRate(500))
+  if (!_gps.setMeasurementRate(500))
   {
     Serial.println("GPS failed setting the measurement rate");
     return false;
   }
   
   // Produce two solutions per second
-  if (_gps.setNavigationFrequency(2))
+  if (!_gps.setNavigationFrequency(2))
   {
     Serial.println("GPS failed setting the navigation frequency");
     return false;
   }
 
   // Tell the GNSS to "send" each solution
-  if (_gps.setAutoPVT(true))
+  if (!_gps.setAutoPVT(true))
   {
     Serial.println("GPS failed setting the auto PVT");
     return false;
