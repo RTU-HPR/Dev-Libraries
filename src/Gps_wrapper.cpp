@@ -11,9 +11,9 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
     // do the i2c specifics
     // start timeout
     unsigned long start_time = millis();
-    while (!_gps.begin(config_i2c.wire, config_i2c.i2c_address))
+    while (!_gps.begin(*(config_i2c.wire), config_i2c.i2c_address))
     {
-        if ((start_time + config_i2c.timeout) > millis())
+        if ((start_time + config_i2c.config.timeout) > millis())
         {
             error("I2C begin timeout");
             return false;
@@ -22,7 +22,7 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
     }
 
     // configure module
-    if (!configure(config_i2c))
+    if (!configure(config_i2c.config))
     {
         error("Configure failed");
         return false;
@@ -36,35 +36,35 @@ bool Gps_Wrapper::begin(Gps_Config_UART config_uart)
 {
     // do the uart specifics
 
-    if (config_uart.serial == Serial1)
+    if (*(config_uart.serial) == Serial1)
     {
-        if (!_gps.setUART1Output(config_uart.com_settings, config_uart.timeout))
+        if (!_gps.setUART1Output(config_uart.config.com_settings, config_uart.config.timeout))
         {
-            error("Failed setting the UART1 output to: " + String(config_uart.com_settings));
+            error("Failed setting the UART1 output to: " + String(config_uart.config.com_settings));
             return false;
         }
     }
-    else if (config_uart.serial == Serial2)
+    else if (*(config_uart.serial) == Serial2)
     {
-        if (!_gps.setUART2Output(config_uart.com_settings, config_uart.timeout))
+        if (!_gps.setUART2Output(config_uart.config.com_settings, config_uart.config.timeout))
         {
-            error("Failed setting the UART2 output to: " + String(config_uart.com_settings));
+            error("Failed setting the UART2 output to: " + String(config_uart.config.com_settings));
             return false;
         }
     }
     else
     {
-        error("Bad UART port: " + String(config_uart.serial));
+        error("Bad UART port: " + String(*(config_uart.serial)));
     }
 
-    if (!_gps.saveConfiguration(config_uart.timeout))
+    if (!_gps.saveConfiguration(config_uart.config.timeout))
     {
         error("Begin: Timeout when saving config");
         return false;
     }
 
     // configure the module
-    if (!configure(config_uart))
+    if (!configure(config_uart.config))
     {
         error("Configure failed");
         return false;

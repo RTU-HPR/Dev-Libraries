@@ -15,21 +15,24 @@ public:
     // this is a base for the other 2 configs i2c and uart
     struct Gps_Config
     {
-        uint8_t timeout;              // Time it takes for anything to timeout
-        uint8_t measurement_rate;     // how often measurement will be taken in ms
+        uint16_t timeout;             // Time it takes for anything to timeout
+        uint16_t measurement_rate;    // how often measurement will be taken in ms
         uint8_t navigation_frequency; // how often tu updated navigation in s
         dynModel dynamic_model;       // DYN_MODEL_AIRBORNE2g
         uint8_t com_settings;         // COM_TYPE_UBX
         bool auto_pvt;                // true
     };
-    struct Gps_Config_I2C : Gps_Config
+    struct Gps_Config_I2C
     {
-        TwoWire &wire;
+        Gps_Config config;
+        TwoWire *wire;
         int i2c_address = 0x42;
     };
-    struct Gps_Config_UART : Gps_Config
+    struct Gps_Config_UART
     {
-        HardwareSerial &serial;
+        Gps_Config config;
+        HardwareSerial *serial;
+        // Constructor that takes Gps_Config instance and a HardwareSerial reference
     };
     struct Gps_Data
     {
