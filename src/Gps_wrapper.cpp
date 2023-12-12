@@ -121,21 +121,21 @@ bool Gps_Wrapper::configure(const Gps_Config &config)
 {
 
     // How often (in ms) to update the GPS
-    if (_gps.setMeasurementRate(config.measurement_rate, config.timeout))
+    if (!_gps.setMeasurementRate(config.measurement_rate, config.timeout))
     {
         error("Failed setting the measurement rate to: " + String(config.measurement_rate));
         return false;
     }
 
     // Produce two solutions per second
-    if (_gps.setNavigationFrequency(config.navigation_frequency, config.timeout))
+    if (!_gps.setNavigationFrequency(config.navigation_frequency, config.timeout))
     {
         error("Failed setting the navigation frequency to: " + String(config.navigation_frequency));
         return false;
     }
 
     // Tell the GNSS to "send" each solution
-    if (_gps.setAutoPVT(config.auto_pvt))
+    if (!_gps.setAutoPVT(config.auto_pvt))
     {
         error("Failed setting the auto PVT to: " + String(config.auto_pvt));
         return false;
