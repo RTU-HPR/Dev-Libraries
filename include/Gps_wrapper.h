@@ -48,47 +48,11 @@ public:
         int minute;
         int second;
     };
-    /**
-     * @brief Construct a new Gps_Wrapper object
-     *
-     * @param error_function the function that will output errors. if you want to print to serial monitor leave nullptr
-     * @param sensor_name The name to give this sensor
-     */
-    Gps_Wrapper(void (*error_function)(String) = nullptr, String sensor_name = "GPS_Default");
+    Gps_Data data;
 
-    /**
-     * @brief Call only if i2c buss has been setup
-     *
-     * @param gps_config_i2c
-     * @return true begin success
-     * @return false begin failure
-     */
-    bool begin(Gps_Config_I2C gps_config_i2c);
-    /**
-     * @brief Only call if UART buss has been setup
-     *
-     * @param gps_config_uart
-     * @return true begin success
-     * @return false begin failure
-     */
-    bool begin(Gps_Config_UART gps_config_uart);
-
-    /**
-     * @brief
-     *
-     * @param gps_data
-     * @return true read success, data was updated
-     * @return false data not read, data wan not updated
-     */
-    bool read(Gps_Data &gps_data);
-
-    /**
-     * @brief
-     *
-     * @param config
-     * @return true config saved
-     * @return false config not saved
-     */
-    bool configure(const Gps_Config &config);
+    bool begin(HardwareSerial &serial, int gps_serial_rx, int gps_serial_tx);
+    bool begin(TwoWire &wire, int i2c_address);
+    void readGps();
 };
+
 #endif
