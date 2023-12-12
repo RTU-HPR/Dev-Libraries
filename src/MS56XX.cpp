@@ -13,7 +13,7 @@ uint8_t MS56XX::commandBaro(uint8_t data){
 uint8_t MS56XX::requestFromBaro(uint8_t reg, uint8_t count){
     Wire.beginTransmission(device_address); 
     Wire.write(reg); 
-    uint8_t err = Wire.endTransmTiission(); 
+    uint8_t err = Wire.endTransmission(); 
     Wire.requestFrom(device_address, count);
     return err;
 }
