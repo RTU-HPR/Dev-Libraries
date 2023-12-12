@@ -161,5 +161,4 @@ bool Gps_Wrapper::configure(const Gps_Config &config)
     }
     return true;
 }
-
 #endif
