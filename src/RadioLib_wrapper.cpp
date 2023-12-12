@@ -2,6 +2,21 @@
 
 #include "RadioLib_wrapper.h"
 
+// used for CRC16 checksum
+uint16_t crc_xmodem_update(uint16_t crc, uint8_t data)
+{
+    int i;
+    crc = crc ^ ((uint16_t)data << 8);
+    for (i = 0; i < 8; i++)
+    {
+        if (crc & 0x8000)
+            crc = (crc << 1) ^ 0x1021;
+        else
+            crc <<= 1;
+    }
+    return crc;
+}
+
 // Flags for radio interrupt functions
 volatile bool action_done = true;
 
@@ -281,48 +296,66 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     return true;
 }
 template <typename T>
+uint16_t RadioLib_Wrapper<T>::calculate_CRC16_CCITT_checksum(const String &msg)
+{
+    size_t i;
+    uint16_t crc;
+    uint8_t c;
+
+    crc = 0xFFFF;
+
+    // Calculate checksum
+    for (i = 0; i < msg.length(); i++)
+    {
+        c = msg.charAt(i);
+        crc = _crc_xmodem_update(crc, c);
+    }
+
+    return crc;
+}
+
+template <typename T>
 void RadioLib_Wrapper<T>::add_checksum(String &msg)
 {
-    int sum = 0;
-
-    // Calculate the sum of individual character values in the message
-    for (size_t i = 0; i < msg.length(); i++)
+    int crc_index_start = 0;
+    if (msg.charAt(0) == '$' && msg.charAt(0) == '$')
     {
-        sum += msg.charAt(i);
+        crc_index_start = 2;
     }
 
-    // Convert the sum to a string with a fixed length of check_sum_length
-    String checksum = String(sum);
-    while (checksum.length() < _check_sum_length)
-    {
-        checksum = "0" + checksum; // Padding with leading zeros if needed
-    }
-
-    // Append the calculated checksum to the original message
-    msg += checksum;
+    msg += "*" + String(calculate_CRC16_CCITT_checksum(msg.substring(crc_index_start)), HEX) + '\n';
 }
 template <typename T>
 bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 {
+    int crc_index_start = 0;
+    if (msg.charAt(0) == '$' && msg.charAt(0) == '$')
+    {
+        crc_index_start = 2;
+    }
+
+    int crc_index_end = 0;
+    for (int i = msg.length(); i > msg.length() - 6)
+    {
+        if (msg.charAt(i) == '*')
+        {
+            crc_index_end = i;
+            break;
+        }
+    }
+    // no crc found
+    if (crc_index_end = 0)
+    {
+        return false;
+    }
+
     // Extract the provided checksum from the message
-    String provided_checksum = msg.substring(msg.length() - _check_sum_length);
+    String provided_checksum = msg.substring(msg.length() - crc_index_end, msg.length());
 
     // Extract the original content of the message (excluding the checksum)
-    String original_msg = msg.substring(0, msg.length() - _check_sum_length);
+    String original_msg = msg.substring(crc_index_start, msg.length() - crc_index_end);
 
-    int sum = 0;
-    for (size_t i = 0; i < original_msg.length(); i++)
-    {
-        sum += original_msg.charAt(i); // Summing up individual character values
-    }
-
-    String calculated_checksum = String(sum); // Calculate checksum from the original message
-
-    // Make sure calculated checksum length is correct
-    while (calculated_checksum.length() < _check_sum_length)
-    {
-        calculated_checksum = "0" + calculated_checksum; // Padding with leading zeros if necessary
-    }
+    String calculated_checksum = String(calculate_CRC16_CCITT_checksum(original_msg), HEX); // Calculate checksum from the original message
 
     // Compare the calculated checksum with the provided checksum
     if (calculated_checksum.equals(provided_checksum))

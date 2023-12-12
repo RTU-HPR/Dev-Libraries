@@ -18,7 +18,6 @@ template <typename T>
 class RadioLib_Wrapper : public Sensor_Wrapper
 {
 private:
-    int _check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
     bool _frequency_correction_enabled;
     double _used_frequency; // Current frequency used if frequency correction enabled
     int _action_status_code;
@@ -49,6 +48,8 @@ private:
      * @return false Failed to set behaviour
      */
     bool configure_tx_rx_switching(int rx_enable, int tx_enable);
+
+    uint16_t calculate_CRC16_CCITT_checksum(const String &msg);
 
 public:
     // Config file
