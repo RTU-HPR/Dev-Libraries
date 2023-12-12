@@ -3,6 +3,7 @@
 #include <RadioLib.h>
 #include <Arduino.h>
 #include <SPI.h>
+#include "Sensor_wrapper.h"
 
 namespace RadioLib_interrupts
 {
@@ -14,29 +15,22 @@ namespace RadioLib_interrupts
 
 // TODO: Implement timeouts for interrupts
 template <typename T>
-class RadioLib_Wrapper
+class RadioLib_Wrapper : public Sensor_Wrapper
 {
 private:
-    int _check_sum_length = 5; // maximum check sum value for 255 byte msg is 65536 -> 5digits
-
-    void (*_error_function)(String);
-
-    // Current frequency used
+    int _check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
     bool _frequency_correction_enabled;
-    double _used_frequency;
+    double _used_frequency; // Current frequency used if frequency correction enabled
+    int _action_status_code;
 
-    // Radio module name
-    String _radio_typename;
-
-    /**
-     * @brief Return a string with the name of the used radio type
-     *
-     * https://stackoverflow.com/questions/75005021/how-to-retrieve-the-data-type-of-a-variable
-     *
-     * @tparam T Class name of Radio module used
-     * @return String Name of the radio module used
-     */
-    String type_name();
+    // Usually displays the last action the radio did
+    enum Action_Type
+    {
+        Transmit,
+        Receive,
+        Standby,
+    };
+    Action_Type _action_type;
 
     /**
      * @brief Configure sx126x based radios so that the chip uses DIO2 pin to control the RXEN and TXEN pins
@@ -55,13 +49,6 @@ private:
      * @return false Failed to set behaviour
      */
     bool configure_tx_rx_switching(int rx_enable, int tx_enable);
-
-    /**
-     * @brief Prints error msg either using specified function set by set_error_function or by default uses serial.println
-     *
-     * @param error_msg
-     */
-    void error(String error_msg);
 
 public:
     // Config file
@@ -104,30 +91,6 @@ public:
     // Radio object
     T radio = new Module(-1, -1, -1, -1);
 
-    // Radio state
-    struct State
-    {
-        bool initialized;
-        int action_status_code;
-
-        // Usually displays the last action the radio did
-        enum Action_Type
-        {
-            Transmit,
-            Receive,
-            Standby,
-        };
-        Action_Type action_type;
-
-        State()
-        {
-            initialized = false;
-            action_status_code = RADIOLIB_ERR_NONE;
-            action_type = Action_Type::Standby;
-        };
-    };
-    State state;
-
     /**
      * @brief Creates a new RadioLib wrapper and initialize the radio module
      *
@@ -152,14 +115,6 @@ public:
      * @return false If not configured successfully
      */
     bool configure_radio(Radio_Config radio_config);
-
-    /**
-     * @brief Return radio initialization status
-     *
-     * @return true If radio is initialized
-     * @return false If radio is not initialized
-     */
-    bool status();
 
     /**
      * @brief Send a message over the radio

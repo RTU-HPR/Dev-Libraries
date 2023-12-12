@@ -18,22 +18,21 @@ void RadioLib_interrupts::set_action_done_flag(void)
 }
 
 template <typename T>
-String RadioLib_Wrapper<T>::type_name()
-{
-    String s = __PRETTY_FUNCTION__;
-    int start = s.indexOf("[with T = ") + 10;
-    int stop = s.lastIndexOf(']');
-    return s.substring(start, stop);
-}
-
-template <typename T>
 RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length)
 {
     // setup default variables
     _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
-    set_error_output_function(error_function);
-    // Save the name of the radio type
-    _radio_typename = type_name();
+    // Save the name of the radio type and set error function
+
+    String type_name = __PRETTY_FUNCTION__;
+    int start = type_name.indexOf("[with T = ") + 10;
+    int stop = type_name.lastIndexOf(']');
+    type_name.substring(start, stop);
+
+    Sensor_Wrapper(type_name, error_function);
+
+    _action_status_code = RADIOLIB_ERR_NONE;
+    _action_type = Action_Type::Standby;
 }
 
 template <typename T>
@@ -69,7 +68,7 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
     }
     // Set interrupt behaviour
     radio.setPacketReceivedAction(RadioLib_interrupts::set_action_done_flag);
-    state.action_type = State::Action_Type::Standby;
+    _action_type = Action_Type::Standby;
 
     if (configure_radio(radio_config) == false)
     {
@@ -78,7 +77,7 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
     }
 
     // Set that radio has been initialized
-    state.initialized = true;
+    set_initialized(true);
     return true;
 }
 
@@ -140,26 +139,6 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
 
     return true;
 }
-template <typename T>
-void RadioLib_Wrapper<T>::set_error_output_function(void (*error_function)(String))
-{
-    _error_function = error_function;
-}
-
-template <typename T>
-void RadioLib_Wrapper<T>::error(String error_msg)
-{
-    error_msg = "RadioLib " + _radio_typename + " Error: " + error_msg;
-
-    if (_error_function == nullptr)
-    {
-        Serial.println(error_msg);
-    }
-    else
-    {
-        _error_function(error_msg);
-    }
-}
 
 // There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
 // general implementation
@@ -207,21 +186,15 @@ bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching(int rx_enable, int tx_e
 }
 
 template <typename T>
-bool RadioLib_Wrapper<T>::status()
-{
-    return state.initialized;
-}
-
-template <typename T>
 bool RadioLib_Wrapper<T>::transmit(String msg)
 {
-    if (!state.initialized)
+    if (!get_initialized())
     {
         return false;
     }
 
     // if radio did something that is not sending data before and it hasn't timedout. Time it out
-    if (!action_done && state.action_type != State::Action_Type::Transmit)
+    if (!action_done && _action_type != Action_Type::Transmit)
     {
         action_done = true;
     }
@@ -241,16 +214,16 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     radio.finishTransmit();
 
     // Start transmitting
-    state.action_status_code = radio.startTransmit(msg);
+    _action_status_code = radio.startTransmit(msg);
 
     // If transmit failed, print error
-    if (state.action_status_code != RADIOLIB_ERR_NONE)
+    if (_action_status_code != RADIOLIB_ERR_NONE)
     {
-        error(" Starting transmit failed with status code:" + String(state.action_status_code));
+        error(" Starting transmit failed with status code:" + String(_action_status_code));
         return false;
     }
     // set last action to transmit
-    state.action_type = State::Action_Type::Transmit;
+    _action_type = Action_Type::Transmit;
 
     return true;
 }
@@ -259,7 +232,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &frequency)
 {
-    if (!state.initialized)
+    if (!get_initialized())
     {
         return false;
     }
@@ -276,15 +249,15 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     // Put into standby to try reading data
     radio.standby();
-    if (state.action_type == State::Action_Type::Receive)
+    if (_action_type == Action_Type::Receive)
     {
         // Try to read received data
         String str = "";
-        state.action_status_code = radio.readData(str);
+        _action_status_code = radio.readData(str);
 
-        if (state.action_status_code != RADIOLIB_ERR_NONE)
+        if (_action_status_code != RADIOLIB_ERR_NONE)
         {
-            error("Receiving failed with status code: " + String(state.action_status_code));
+            error("Receiving failed with status code: " + String(_action_status_code));
         }
 
         msg = str;
@@ -307,7 +280,7 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     // Restart receiving TODO add error check for start recieve
     radio.startReceive();
-    state.action_type = State::Action_Type::Receive;
+    _action_type = Action_Type::Receive;
     // If haven't recieved anything return false;
     if (msg == "")
     {
@@ -374,14 +347,15 @@ bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::test_transmit()
 {
-    String msg = _radio_typename + " Transmission test";
+    String msg = get_sensor_name() + " Transmission test";
 
     // Try to transmit the test message
     if (radio.transmit(msg))
     {
         error("Test transmission failed. Setting radio as not initialized!");
-        state.initialized = false;
+        set_initialized(false);
         return false;
+        _initialized = true;
     }
     return true;
 }
