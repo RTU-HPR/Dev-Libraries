@@ -2,6 +2,21 @@
 
 #include "RadioLib_wrapper.h"
 
+// used for CRC16 checksum
+uint16_t crc_xmodem_update(uint16_t crc, uint8_t data)
+{
+    int i;
+    crc = crc ^ ((uint16_t)data << 8);
+    for (i = 0; i < 8; i++)
+    {
+        if (crc & 0x8000)
+            crc = (crc << 1) ^ 0x1021;
+        else
+            crc <<= 1;
+    }
+    return crc;
+}
+
 // Flags for radio interrupt functions
 volatile bool action_done = true;
 
@@ -18,22 +33,13 @@ void RadioLib_interrupts::set_action_done_flag(void)
 }
 
 template <typename T>
-String RadioLib_Wrapper<T>::type_name()
-{
-    String s = __PRETTY_FUNCTION__;
-    int start = s.indexOf("[with T = ") + 10;
-    int stop = s.lastIndexOf(']');
-    return s.substring(start, stop);
-}
-
-template <typename T>
-RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length)
+RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length, String sensor_name) : Sensor_Wrapper(sensor_name, error_function)
 {
     // setup default variables
     _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
-    set_error_output_function(error_function);
-    // Save the name of the radio type
-    _radio_typename = type_name();
+    // Save the name of the radio type and set error function
+    _action_status_code = RADIOLIB_ERR_NONE;
+    _action_type = Action_Type::Standby;
 }
 
 template <typename T>
@@ -59,17 +65,17 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
     }
 
     // Try to initialize communication with LoRa
-    state.action_status_code = radio.begin();
+    _action_status_code = radio.begin();
 
     // If initialization failed, print error
-    if (state.action_status_code != RADIOLIB_ERR_NONE)
+    if (_action_status_code != RADIOLIB_ERR_NONE)
     {
-        error("Initialization failed with status code: " + String(state.action_status_code));
+        error("Initialization failed with status code: " + String(_action_status_code));
         return false;
     }
     // Set interrupt behaviour
     radio.setPacketReceivedAction(RadioLib_interrupts::set_action_done_flag);
-    state.action_type = State::Action_Type::Standby;
+    _action_type = Action_Type::Standby;
 
     if (configure_radio(radio_config) == false)
     {
@@ -78,7 +84,7 @@ bool RadioLib_Wrapper<T>::begin(Radio_Config radio_config)
     }
 
     // Set that radio has been initialized
-    state.initialized = true;
+    set_initialized(true);
     return true;
 }
 
@@ -140,26 +146,6 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
 
     return true;
 }
-template <typename T>
-void RadioLib_Wrapper<T>::set_error_output_function(void (*error_function)(String))
-{
-    _error_function = error_function;
-}
-
-template <typename T>
-void RadioLib_Wrapper<T>::error(String error_msg)
-{
-    error_msg = "RadioLib " + _radio_typename + " Error: " + error_msg;
-
-    if (_error_function == nullptr)
-    {
-        Serial.println(error_msg);
-    }
-    else
-    {
-        _error_function(error_msg);
-    }
-}
 
 // There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
 // general implementation
@@ -207,21 +193,15 @@ bool RadioLib_Wrapper<SX1262>::configure_tx_rx_switching(int rx_enable, int tx_e
 }
 
 template <typename T>
-bool RadioLib_Wrapper<T>::status()
-{
-    return state.initialized;
-}
-
-template <typename T>
 bool RadioLib_Wrapper<T>::transmit(String msg)
 {
-    if (!state.initialized)
+    if (!get_initialized())
     {
         return false;
     }
 
     // if radio did something that is not sending data before and it hasn't timedout. Time it out
-    if (!action_done && state.action_type != State::Action_Type::Transmit)
+    if (!action_done && _action_type != Action_Type::Transmit)
     {
         action_done = true;
     }
@@ -241,16 +221,16 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     radio.finishTransmit();
 
     // Start transmitting
-    state.action_status_code = radio.startTransmit(msg);
+    _action_status_code = radio.startTransmit(msg);
 
     // If transmit failed, print error
-    if (state.action_status_code != RADIOLIB_ERR_NONE)
+    if (_action_status_code != RADIOLIB_ERR_NONE)
     {
-        error(" Starting transmit failed with status code:" + String(state.action_status_code));
+        error(" Starting transmit failed with status code:" + String(_action_status_code));
         return false;
     }
     // set last action to transmit
-    state.action_type = State::Action_Type::Transmit;
+    _action_type = Action_Type::Transmit;
 
     return true;
 }
@@ -259,7 +239,7 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &frequency)
 {
-    if (!state.initialized)
+    if (!get_initialized())
     {
         return false;
     }
@@ -276,15 +256,15 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     // Put into standby to try reading data
     radio.standby();
-    if (state.action_type == State::Action_Type::Receive)
+    if (_action_type == Action_Type::Receive)
     {
         // Try to read received data
         String str = "";
-        state.action_status_code = radio.readData(str);
+        _action_status_code = radio.readData(str);
 
-        if (state.action_status_code != RADIOLIB_ERR_NONE)
+        if (_action_status_code != RADIOLIB_ERR_NONE)
         {
-            error("Receiving failed with status code: " + String(state.action_status_code));
+            error("Receiving failed with status code: " + String(_action_status_code));
         }
 
         msg = str;
@@ -307,7 +287,7 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     // Restart receiving TODO add error check for start recieve
     radio.startReceive();
-    state.action_type = State::Action_Type::Receive;
+    _action_type = Action_Type::Receive;
     // If haven't recieved anything return false;
     if (msg == "")
     {
@@ -316,48 +296,66 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     return true;
 }
 template <typename T>
+uint16_t RadioLib_Wrapper<T>::calculate_CRC16_CCITT_checksum(const String &msg)
+{
+    size_t i;
+    uint16_t crc;
+    uint8_t c;
+
+    crc = 0xFFFF;
+
+    // Calculate checksum
+    for (i = 0; i < msg.length(); i++)
+    {
+        c = msg.charAt(i);
+        crc = _crc_xmodem_update(crc, c);
+    }
+
+    return crc;
+}
+
+template <typename T>
 void RadioLib_Wrapper<T>::add_checksum(String &msg)
 {
-    int sum = 0;
-
-    // Calculate the sum of individual character values in the message
-    for (size_t i = 0; i < msg.length(); i++)
+    int crc_index_start = 0;
+    if (msg.charAt(0) == '$' && msg.charAt(0) == '$')
     {
-        sum += msg.charAt(i);
+        crc_index_start = 2;
     }
 
-    // Convert the sum to a string with a fixed length of check_sum_length
-    String checksum = String(sum);
-    while (checksum.length() < _check_sum_length)
-    {
-        checksum = "0" + checksum; // Padding with leading zeros if needed
-    }
-
-    // Append the calculated checksum to the original message
-    msg += checksum;
+    msg += "*" + String(calculate_CRC16_CCITT_checksum(msg.substring(crc_index_start)), HEX) + '\n';
 }
 template <typename T>
 bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 {
+    int crc_index_start = 0;
+    if (msg.charAt(0) == '$' && msg.charAt(0) == '$')
+    {
+        crc_index_start = 2;
+    }
+
+    int crc_index_end = 0;
+    for (int i = msg.length(); i > msg.length() - 6)
+    {
+        if (msg.charAt(i) == '*')
+        {
+            crc_index_end = i;
+            break;
+        }
+    }
+    // no crc found
+    if (crc_index_end = 0)
+    {
+        return false;
+    }
+
     // Extract the provided checksum from the message
-    String provided_checksum = msg.substring(msg.length() - _check_sum_length);
+    String provided_checksum = msg.substring(msg.length() - crc_index_end, msg.length());
 
     // Extract the original content of the message (excluding the checksum)
-    String original_msg = msg.substring(0, msg.length() - _check_sum_length);
+    String original_msg = msg.substring(crc_index_start, msg.length() - crc_index_end);
 
-    int sum = 0;
-    for (size_t i = 0; i < original_msg.length(); i++)
-    {
-        sum += original_msg.charAt(i); // Summing up individual character values
-    }
-
-    String calculated_checksum = String(sum); // Calculate checksum from the original message
-
-    // Make sure calculated checksum length is correct
-    while (calculated_checksum.length() < _check_sum_length)
-    {
-        calculated_checksum = "0" + calculated_checksum; // Padding with leading zeros if necessary
-    }
+    String calculated_checksum = String(calculate_CRC16_CCITT_checksum(original_msg), HEX); // Calculate checksum from the original message
 
     // Compare the calculated checksum with the provided checksum
     if (calculated_checksum.equals(provided_checksum))
@@ -374,13 +372,13 @@ bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::test_transmit()
 {
-    String msg = _radio_typename + " Transmission test";
+    String msg = get_sensor_name() + " Transmission test";
 
     // Try to transmit the test message
     if (radio.transmit(msg))
     {
         error("Test transmission failed. Setting radio as not initialized!");
-        state.initialized = false;
+        set_initialized(false);
         return false;
     }
     return true;
