@@ -106,7 +106,11 @@ bool Gps_Wrapper::read(Gps_Data &data)
 
         // SANITY CHECK
         // Check if location is somewhere in the northern eastern Europe adn we have more than 3 new_satellites
-        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35) && new_satellites >= 3))
+        if (&&new_satellites <= 3)
+        {
+            return false;
+        }
+        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35)))
         {
             data.lat = new_gps_lat;
             data.lng = new_gps_lng;
