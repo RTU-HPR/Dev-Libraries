@@ -35,6 +35,20 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
 bool Gps_Wrapper::begin(Gps_Config_UART config_uart)
 {
     // do the uart specifics
+    if (!*(config_uart.serial))
+    {
+        error("Serial not started: " + String(*(config_uart.serial)));
+    }
+
+    if (_gps.begin(*(config_uart.serial)))
+    {
+        //_gps.setSerialRate(38400);
+    }
+    else
+    {
+        error("Failed begin module");
+        return false;
+    }
 
     if (*(config_uart.serial) == Serial1)
     {
