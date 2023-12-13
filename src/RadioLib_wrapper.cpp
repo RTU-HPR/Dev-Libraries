@@ -129,7 +129,7 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
 
     if (radio_config.rf_switching == Radio_Config::Rf_Switching::Gpio)
     {
-        if (bool state = configure_tx_rx_switching(radio_config.rx_enable, radio_config.tx_enable != true))
+        if (bool state = configure_tx_rx_switching(radio_config.rx_enable, radio_config.tx_enable) != true)
         {
             error("RF switching setup is invalid: GPIO");
             return false;
