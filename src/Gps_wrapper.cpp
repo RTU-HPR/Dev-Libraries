@@ -102,15 +102,16 @@ bool Gps_Wrapper::read(Gps_Data &data)
 
         double new_gps_lat = new_gps_lat_raw / 10000000.0;
         double new_gps_lng = new_gps_lng_raw / 10000000.0;
+        int new_satellites = _gps.getSIV();
 
         // SANITY CHECK
-        // Check if location is 0 (not yet established) or somewhere in the northern eastern Europe
-        if ((new_gps_lat == 0 && new_gps_lng == 0) || ((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35)))
+        // Check if location is somewhere in the northern eastern Europe adn we have more than 3 new_satellites
+        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35) && new_satellites >= 3))
         {
             data.lat = new_gps_lat;
             data.lng = new_gps_lng;
             data.altitude = _gps.getAltitude() / 1000.0;
-            data.satellites = _gps.getSIV();
+            data.satellites = new_satellites;
             data.speed = _gps.getGroundSpeed() / 1000.0;
             data.heading = _gps.getHeading() / 10000.0;
             data.pdop = _gps.getPDOP() / 100.0;
@@ -125,7 +126,7 @@ bool Gps_Wrapper::read(Gps_Data &data)
         }
         else
         {
-            error("GPS location is not correct: " + String(new_gps_lat, 6) + " " + String(new_gps_lng, 6));
+            error("GPS location doesn't meet minimum: " + String(new_gps_lat, 6) + " " + String(new_gps_lng, 6) + " " + String(new_satellites));
         }
     }
     return false;
