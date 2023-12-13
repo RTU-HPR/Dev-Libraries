@@ -2,20 +2,7 @@
 
 #include "RadioLib_wrapper.h"
 
-// used for CRC16 checksum
-uint16_t crc_xmodem_update(uint16_t crc, uint8_t data)
-{
-    int i;
-    crc = crc ^ ((uint16_t)data << 8);
-    for (i = 0; i < 8; i++)
-    {
-        if (crc & 0x8000)
-            crc = (crc << 1) ^ 0x1021;
-        else
-            crc <<= 1;
-    }
-    return crc;
-}
+
 
 // Flags for radio interrupt functions
 volatile bool action_done = true;
@@ -36,7 +23,6 @@ template <typename T>
 RadioLib_Wrapper<T>::RadioLib_Wrapper(void (*error_function)(String), int check_sum_length, String sensor_name) : Sensor_Wrapper(sensor_name, error_function)
 {
     // setup default variables
-    _check_sum_length = check_sum_length; // maximum check sum value for 255 byte msg is 65536 -> 5digits
     // Save the name of the radio type and set error function
     _action_status_code = RADIOLIB_ERR_NONE;
     _action_type = Action_Type::Standby;
@@ -295,6 +281,22 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     return true;
 }
+// used for CRC16 checksum
+template <typename T>
+uint16_t RadioLib_Wrapper<T>::crc_xmodem_update(uint16_t crc, uint8_t data)
+{
+    int i;
+    crc = crc ^ ((uint16_t)data << 8);
+    for (i = 0; i < 8; i++)
+    {
+        if (crc & 0x8000)
+            crc = (crc << 1) ^ 0x1021;
+        else
+            crc <<= 1;
+    }
+    return crc;
+}
+
 template <typename T>
 uint16_t RadioLib_Wrapper<T>::calculate_CRC16_CCITT_checksum(const String &msg)
 {
@@ -308,7 +310,7 @@ uint16_t RadioLib_Wrapper<T>::calculate_CRC16_CCITT_checksum(const String &msg)
     for (i = 0; i < msg.length(); i++)
     {
         c = msg.charAt(i);
-        crc = _crc_xmodem_update(crc, c);
+        crc = crc_xmodem_update(crc, c);
     }
 
     return crc;
@@ -335,7 +337,7 @@ bool RadioLib_Wrapper<T>::check_checksum(String &msg)
     }
 
     int crc_index_end = 0;
-    for (int i = msg.length(); i > msg.length() - 6)
+    for (int i = msg.length(); i > msg.length() - 6;)
     {
         if (msg.charAt(i) == '*')
         {

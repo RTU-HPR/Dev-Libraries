@@ -30,7 +30,8 @@ private:
         Standby,
     };
     Action_Type _action_type;
-
+    //used for crc
+    uint16_t crc_xmodem_update(uint16_t crc, uint8_t data);
     /**
      * @brief Configure sx126x based radios so that the chip uses DIO2 pin to control the RXEN and TXEN pins
      *

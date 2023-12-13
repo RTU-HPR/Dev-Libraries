@@ -93,5 +93,5 @@ public:
      * @return false config not saved
      */
     bool configure(const Gps_Config &config);
-
+};
 #endif
