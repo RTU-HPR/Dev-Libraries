@@ -106,7 +106,7 @@ bool Gps_Wrapper::read(Gps_Data &data)
 
         // SANITY CHECK
         // Check if location is somewhere in the northern eastern Europe adn we have more than 3 new_satellites
-        if (&&new_satellites <= 3)
+        if (new_satellites <= 3)
         {
             return false;
         }
