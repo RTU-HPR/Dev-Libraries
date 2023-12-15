@@ -2,8 +2,6 @@
 
 #include "RadioLib_wrapper.h"
 
-
-
 // Flags for radio interrupt functions
 volatile bool action_done = true;
 
@@ -330,32 +328,45 @@ void RadioLib_Wrapper<T>::add_checksum(String &msg)
 template <typename T>
 bool RadioLib_Wrapper<T>::check_checksum(String &msg)
 {
+    msg.trim();
+
+    if (msg.length() < 6)
+    {
+        return false;
+    }
     int crc_index_start = 0;
     if (msg.charAt(0) == '$' && msg.charAt(0) == '$')
     {
         crc_index_start = 2;
     }
 
+    // checkfor outof bounds
     int crc_index_end = 0;
-    for (int i = msg.length(); i > msg.length() - 6;)
+    int i_end = msg.length() - 6;
+    if (i_end < 0)
     {
+        i_end = 0;
+    }
+
+    for (int i = msg.length(); i > i_end; i--)
+    {
+        // Serial.println(" i:" + String(i)); for debugging
         if (msg.charAt(i) == '*')
         {
             crc_index_end = i;
             break;
         }
     }
+
     // no crc found
-    if (crc_index_end = 0)
+    if (crc_index_end == 0)
     {
         return false;
     }
-
     // Extract the provided checksum from the message
-    String provided_checksum = msg.substring(msg.length() - crc_index_end, msg.length());
-
+    String provided_checksum = msg.substring(crc_index_end + 1, msg.length());
     // Extract the original content of the message (excluding the checksum)
-    String original_msg = msg.substring(crc_index_start, msg.length() - crc_index_end);
+    String original_msg = msg.substring(crc_index_start, crc_index_end);
 
     String calculated_checksum = String(calculate_CRC16_CCITT_checksum(original_msg), HEX); // Calculate checksum from the original message
 
