@@ -11,9 +11,9 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
     // do the i2c specifics
     // start timeout
     unsigned long start_time = millis();
-    while (!_gps.begin(config_i2c.wire, config_i2c.i2c_address))
+    while (!_gps.begin(*(config_i2c.wire), config_i2c.i2c_address))
     {
-        if ((start_time + config_i2c.timeout) > millis())
+        if ((start_time + config_i2c.config.timeout) > millis())
         {
             error("I2C begin timeout");
             return false;
@@ -22,7 +22,7 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
     }
 
     // configure module
-    if (!configure(config_i2c))
+    if (!configure(config_i2c.config))
     {
         error("Configure failed");
         return false;
@@ -35,36 +35,50 @@ bool Gps_Wrapper::begin(Gps_Config_I2C config_i2c)
 bool Gps_Wrapper::begin(Gps_Config_UART config_uart)
 {
     // do the uart specifics
-
-    if (config_uart.serial == Serial1)
+    if (!*(config_uart.serial))
     {
-        if (!_gps.setUART1Output(config_uart.com_settings, config_uart.timeout))
+        error("Serial not started: " + String(*(config_uart.serial)));
+    }
+
+    if (_gps.begin(*(config_uart.serial)))
+    {
+        //_gps.setSerialRate(38400);
+    }
+    else
+    {
+        error("Failed begin module");
+        return false;
+    }
+
+    if (*(config_uart.serial) == Serial1)
+    {
+        if (!_gps.setUART1Output(config_uart.config.com_settings, config_uart.config.timeout))
         {
-            error("Failed setting the UART1 output to: " + String(config_uart.com_settings));
+            error("Failed setting the UART1 output to: " + String(config_uart.config.com_settings));
             return false;
         }
     }
-    else if (config_uart.serial == Serial2)
+    else if (*(config_uart.serial) == Serial2)
     {
-        if (!_gps.setUART2Output(config_uart.com_settings, config_uart.timeout))
+        if (!_gps.setUART2Output(config_uart.config.com_settings, config_uart.config.timeout))
         {
-            error("Failed setting the UART2 output to: " + String(config_uart.com_settings));
+            error("Failed setting the UART2 output to: " + String(config_uart.config.com_settings));
             return false;
         }
     }
     else
     {
-        error("Bad UART port: " + String(config_uart.serial));
+        error("Bad UART port: " + String(*(config_uart.serial)));
     }
 
-    if (!_gps.saveConfiguration(config_uart.timeout))
+    if (!_gps.saveConfiguration(config_uart.config.timeout))
     {
         error("Begin: Timeout when saving config");
         return false;
     }
 
     // configure the module
-    if (!configure(config_uart))
+    if (!configure(config_uart.config))
     {
         error("Configure failed");
         return false;
@@ -88,15 +102,20 @@ bool Gps_Wrapper::read(Gps_Data &data)
 
         double new_gps_lat = new_gps_lat_raw / 10000000.0;
         double new_gps_lng = new_gps_lng_raw / 10000000.0;
+        int new_satellites = _gps.getSIV();
 
         // SANITY CHECK
-        // Check if location is 0 (not yet established) or somewhere in the northern eastern Europe
-        if ((new_gps_lat == 0 && new_gps_lng == 0) || ((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35)))
+        // Check if location is somewhere in the northern eastern Europe adn we have more than 3 new_satellites
+        if (&&new_satellites <= 3)
+        {
+            return false;
+        }
+        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35)))
         {
             data.lat = new_gps_lat;
             data.lng = new_gps_lng;
             data.altitude = _gps.getAltitude() / 1000.0;
-            data.satellites = _gps.getSIV();
+            data.satellites = new_satellites;
             data.speed = _gps.getGroundSpeed() / 1000.0;
             data.heading = _gps.getHeading() / 10000.0;
             data.pdop = _gps.getPDOP() / 100.0;
@@ -111,7 +130,7 @@ bool Gps_Wrapper::read(Gps_Data &data)
         }
         else
         {
-            error("GPS location is not correct: " + String(new_gps_lat, 6) + " " + String(new_gps_lng, 6));
+            error("GPS location doesn't meet minimum: " + String(new_gps_lat, 6) + " " + String(new_gps_lng, 6) + " " + String(new_satellites));
         }
     }
     return false;
