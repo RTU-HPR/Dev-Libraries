@@ -1,79 +1,127 @@
-#ifdef MS56XX_ENABLED
-#ifndef MS56XX_H
-#define MS56XX_H
+/*
+  This library is used for the MS56XX series of pressure sensors.
+  The MS5607 and MS5611 are supported.
 
-#include <Arduino.h>
+  The original code comes from https://github.com/RobTillaart/MS5611/tree/master
+
+  This code was modified by RTU HPR team to implement features and changes
+  to better suit our use cases.
+
+  The changes are as follows:
+    - The begin function now takes in a config stuct that contains
+      the required configuration parameters
+    - Added altitude calculation
+    - General comments
+    - Simplified code
+    - Removed unnecessary code
+*/
+
+#ifdef MS56XX_ENABLE
+
+#include "Sensor_wrapper.h"
 #include <Wire.h>
 
-//ADDRESS
-#define MS56XX_ADDR_LOW 0x77
-#define MS56XX_ADDR_HIGH 0x76
-//OSR D1
-#define BARO_PRESS_D1_OSR_256 0x40
-#define BARO_PRESS_D1_OSR_512 0x42
-#define BARO_PRESS_D1_OSR_1024 0x44
-#define BARO_PRESS_D1_OSR_2048 0x46
-#define BARO_PRESS_D1_OSR_4096 0x48
-//OSR D2
-#define BARO_TEMP_D2_OSR_256 0x50
-#define BARO_TEMP_D2_OSR_512 0x52
-#define BARO_TEMP_D2_OSR_1024 0x54
-#define BARO_TEMP_D2_OSR_2048 0x56
-#define BARO_TEMP_D2_OSR_4096 0x58
-//READ
-#define BARO_ADC_READ 0x00
-#define BARO_PROM_READ 0xA0
-//BARO VARIANTS
-#define MS5607 0
-#define MS5611 1
+class MS56XX : public Sensor_Wrapper
+{
+private:
+  // datasheet page 10
+  const int MS56XX_CMD_READ_ADC = 0x00;
+  const int MS56XX_CMD_READ_PROM = 0xA0;
+  const int MS56XX_CMD_RESET = 0x1E;
+  const int MS56XX_CMD_CONVERT_D1 = 0x40;
+  const int MS56XX_CMD_CONVERT_D2 = 0x50;
 
-class MS56XX{
-    private:
-        int prev_time, dt;
-        uint16_t refresh_rate = 0;
+  struct MS56XX_RunTimeVariables
+  {
+    int result;
+    uint32_t lastRead;
+  };
+  MS56XX_RunTimeVariables runTimeVariables;
 
-        bool d1_polled, d2_polled;
-        bool d1_read, d2_read;
+  // PROM buffer
+  float C[7];
 
-        uint8_t var_const;
+  // Functions from original library
+  // Used to do calculations and read/write to the sensor
+  void initConstants(uint8_t mathMode);
+  void convert(const uint8_t addr, uint8_t bits);
+  int command(const uint8_t command);
+  uint16_t readProm(uint8_t reg);
+  uint32_t readADC();
 
-        uint16_t c1_pres_sens;
-        uint16_t c2_pres_off;
-        uint16_t c3_temp_coef_pres_sens;
-        uint16_t c4_temp_coef_pres_off;
-        uint16_t c5_temp_ref;
-        uint16_t c6_temp_coef_sens;
+public:
+  enum MS56XX_OVERSAMPLING
+  {
+    OSR_ULTRA_HIGH = 12, // 10 millis
+    OSR_HIGH = 11,       //  5 millis
+    OSR_STANDARD = 10,   //  3 millis
+    OSR_LOW = 9,         //  2 millis
+  };
 
-        uint32_t d1_pressure;
-        uint32_t d2_temperature;
-        
-        float dT_temp_diff;
+  enum MS56XX_I2C_ADDRESS
+  {
+    I2C_0x76 = 0x76,
+    I2C_0x77 = 0x77,
+  };
 
-        uint8_t d1_polling_address;
-        uint8_t d2_polling_address;
+  enum MS56XX_TYPE
+  {
+    MS5611 = 0,
+    MS5607 = 1,
+  };
 
-        uint8_t commandBaro(uint8_t reg);
-        uint8_t requestFromBaro(uint8_t reg, uint8_t count);
+  struct MS56XX_Config
+  {
+    TwoWire *wire;
+    MS56XX_I2C_ADDRESS i2c_address;
+    MS56XX_TYPE ms56xx_type;
+    MS56XX_OVERSAMPLING oversampling;
+  };
 
-        void getCoefficients();
-        void calculateTemperature();
-        void calculateCompensatedPressure();
-    public:
-        uint8_t device_address;
-        
-        float pressure;
-        float temperature;
-        float altitude;
+  MS56XX_Config _config;
 
-    MS56XX(uint8_t anAddress, uint8_t MSXX){
-        device_address = anAddress;
-        var_const = MSXX;
-    }
+  struct MS56XX_Data
+  {
+    float temperature;
+    int32_t pressure;
+    float altitude;
+  };
 
-    bool begin();
-    void configBaro(uint8_t d1_anAddress, uint8_t d2_anAddress);
-    bool doBaro(bool doAltitude);
+  /**
+   * @brief Initializes an instance of the MS56XX sensor.
+   * 
+   * @param error_function A pointer to an error handling function. Defaults to nullptr.
+   * @param sensor_name The name of the sensor. Defaults to "MS56XX".
+   */
+  MS56XX(void (*error_function)(String) = nullptr, String sensor_name = "MS56XX");
+
+  /**
+   * @brief Initializes the MS56XX sensor with the specified configuration.
+   * 
+   * @param config The configuration settings for the sensor.
+   * @return True if the initialization is successful, false otherwise.
+   */
+  bool begin(MS56XX_Config &config);
+
+  /**
+   * @brief Resets the MS56XX sensor to its default state.
+   * 
+   * @param altered_mode The altered calculation mode. If using MS5611 it will be set to 0.
+   * If using MS5607 it will be set to 1.
+   * @return True if the reset was successful, false otherwise.
+   */
+  bool reset(uint8_t altered_mode = 0);
+
+  /**
+   * @brief Reads data from the MS56XX sensor.
+   * 
+   * This function reads data from the MS56XX sensor and stores it in the provided data structure.
+   * 
+   * @param data The data structure to store the sensor readings.
+   * @param outside_temperature The outside temperature in degrees Celsius used for altitude calculations (defaults to 15 degress Celsius).
+   * @return true if the read operation was successful, false otherwise.
+   */
+  bool read(MS56XX_Data &data,  float outside_temperature = 15);
 };
 
-#endif
 #endif

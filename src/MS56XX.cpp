@@ -1,152 +1,207 @@
-#ifdef MS56XX_ENABLED
-#include <Arduino.h>
-#include <Wire.h>
+#ifdef MS56XX_ENABLE
 #include "MS56XX.h"
 
-//MS56XX
-
-uint8_t MS56XX::commandBaro(uint8_t data){
-    Wire.beginTransmission(device_address); 
-    Wire.write(data); 
-    return Wire.endTransmission();
-}
-uint8_t MS56XX::requestFromBaro(uint8_t reg, uint8_t count){
-    Wire.beginTransmission(device_address); 
-    Wire.write(reg); 
-    uint8_t err = Wire.endTransmission(); 
-    Wire.requestFrom(device_address, count);
-    return err;
+MS56XX::MS56XX(void (*error_function)(String), String sensor_name) : Sensor_Wrapper(sensor_name, error_function)
+{
+  return;
 }
 
-bool MS56XX::begin(){
-    Wire.beginTransmission(device_address);
-    uint8_t error = Wire.endTransmission(); //Check error code of a test transmission
+bool MS56XX::begin(MS56XX_Config &config)
+{
+  config.wire->beginTransmission(config.i2c_address);
+  if (config.wire->endTransmission() != 0)
+  {
+    return false;
+  }
 
-    if(error != 0){ return false; }
+  // Copy the passed config to object config, to be used later
+  _config.i2c_address = config.i2c_address;
+  _config.wire = config.wire;
+  _config.ms56xx_type = config.ms56xx_type;
+  _config.oversampling = config.oversampling;
 
-    commandBaro(0x1E); //Reset the sensor
-    
-    delay(50);
+  return reset(config.ms56xx_type);
+}
 
-    uint16_t PROM_BUFFER[8]; //Buffer for the PROM memory
+bool MS56XX::reset(uint8_t mathMode)
+{
+  // Reset the sensor
+  command(MS56XX_CMD_RESET);
+  delay(50);
 
-    for(int i = 0; i < 8; i++){
-        requestFromBaro(0xA0 + (i << 1), 2); //Read PROM
-        PROM_BUFFER[i] = (Wire.read() << 8) | Wire.read();
+  // Initialize the PROM constant array
+  initConstants(mathMode);
+
+  // Read factory calibrations from PROM.
+  bool PROM_OK = true;
+  for (uint8_t reg = 0; reg < 7; reg++)
+  {
+    uint16_t tmp = readProm(reg);
+    C[reg] *= tmp;
+    if (reg > 0)
+    {
+      PROM_OK = PROM_OK && (tmp != 0);
     }
-
-    c1_pres_sens = PROM_BUFFER[1];
-    c2_pres_off = PROM_BUFFER[2];
-    c3_temp_coef_pres_sens = PROM_BUFFER[3];
-    c4_temp_coef_pres_off = PROM_BUFFER[4];
-    c5_temp_ref = PROM_BUFFER[5];
-    c6_temp_coef_sens = PROM_BUFFER[6];
-
-    configBaro(BARO_PRESS_D1_OSR_512, BARO_TEMP_D2_OSR_512); //Default configuration
-
-    return true;
+  }
+  return PROM_OK;
 }
 
-void MS56XX::configBaro(uint8_t d1_anAddress, uint8_t d2_anAddress){
-    d1_polling_address = d1_anAddress;
-    d2_polling_address = d2_anAddress;
-}
+bool MS56XX::read(MS56XX_Data &data, float outside_temperature)
+{
+  //  VARIABLES NAMES BASED ON DATASHEET
+  //  ALL MAGIC NUMBERS ARE FROM DATASHEET
 
-bool MS56XX::doBaro(bool doAltitude){ //RETURNS TRUE IF NEW DATA IS CALCULATED
-    if(!d1_polled){
-        prev_time = millis();
-        d1_polled = true;
-        switch(d1_polling_address){
-            case BARO_PRESS_D1_OSR_4096:
-                refresh_rate = 10;
-                break;
-            case BARO_PRESS_D1_OSR_2048:
-                refresh_rate = 5;
-                break;
-            case BARO_PRESS_D1_OSR_1024:
-                refresh_rate = 3;
-                break;
-            case BARO_PRESS_D1_OSR_512:
-                refresh_rate = 2;
-                break;
-            case BARO_PRESS_D1_OSR_256:
-                refresh_rate = 1;
-                break;
-        }
-        commandBaro(d1_polling_address);
-    }   
+  // Read pressure registers
+  convert(MS56XX_CMD_CONVERT_D1, _config.oversampling);
+  if (runTimeVariables.result)
+    return runTimeVariables.result;
+  //  NOTE: D1 and D2 seem reserved in MBED (NANO BLE)
+  uint32_t _D1 = readADC();
+  if (runTimeVariables.result)
+    return runTimeVariables.result;
 
-    dt = millis() - prev_time;
-    if(dt > refresh_rate && !d1_read){
-        requestFromBaro(BARO_ADC_READ, 3);
+  // Read temperature registers
+  convert(MS56XX_CMD_CONVERT_D2, _config.oversampling);
+  if (runTimeVariables.result)
+    return runTimeVariables.result;
+  uint32_t _D2 = readADC();
+  if (runTimeVariables.result)
+    return runTimeVariables.result;
 
-        d1_pressure = (Wire.read() << 16) | (Wire.read() << 8) | Wire.read();
+  //  TEMP & PRESS MATH - PAGE 7/20
+  float dT = _D2 - C[5];
+  float new_temperature = 2000 + dT * C[6];
 
-        d1_read = true;
-    }else if(!d1_read){
-        return false;
+  float offset = C[2] + dT * C[4];
+  float sens = C[1] + dT * C[3];
+
+  //  SECOND ORDER COMPENSATION - PAGE 8/20
+  //  COMMENT OUT < 2000 CORRECTION IF NOT NEEDED
+  //  NOTE TEMPERATURE IS IN 0.01 C
+  if (new_temperature < 2000)
+  {
+    float T2 = dT * dT * 4.6566128731E-10;
+    float t = (new_temperature - 2000) * (new_temperature - 2000);
+    float offset2 = 2.5 * t;
+    float sens2 = 1.25 * t;
+    //  COMMENT OUT < -1500 CORRECTION IF NOT NEEDED
+    if (new_temperature < -1500)
+    {
+      t = (new_temperature + 1500) * (new_temperature + 1500);
+      offset2 += 7 * t;
+      sens2 += 5.5 * t;
     }
-    
-    if(!d2_polled){
-        prev_time = millis();
-        d2_polled = true;
-        switch(d2_polling_address){
-            case BARO_TEMP_D2_OSR_4096:
-                refresh_rate = 10;
-                break;
-            case BARO_TEMP_D2_OSR_2048:
-                refresh_rate = 5;
-                break;
-            case BARO_TEMP_D2_OSR_1024:
-                refresh_rate = 3;
-                break;
-            case BARO_TEMP_D2_OSR_512:
-                refresh_rate = 2;
-                break;
-            case BARO_TEMP_D2_OSR_256:
-                refresh_rate = 1;
-                break;
-        }
-        commandBaro(d2_polling_address);
-    }
+    new_temperature -= T2;
+    offset -= offset2;
+    sens -= sens2;
+  }
+  
+  // Store the data in the provided data struct
+  data.temperature = new_temperature * 0.01;
+  data.pressure = (_D1 * sens * 4.76837158205E-7 - offset) * 3.051757813E-5;
 
-    dt = millis() - prev_time;
-    if(dt > refresh_rate && !d2_read){
-        requestFromBaro(BARO_ADC_READ, 3);
+  // Barometric formula
+  // h = (RT/gM) * ln(p0/p)
+  // 29.271267 = (R/gM)
+  data.altitude = 29.271267 * (273.15 + outside_temperature) * log(101325 / (float)data.pressure);
 
-        d2_temperature = (Wire.read() << 16) | (Wire.read() << 8) | Wire.read();
-
-        d2_read = true;
-    }else if(!d2_read){
-        return false;
-    }
-
-    calculateTemperature();
-    calculateCompensatedPressure();
-    if(doAltitude){
-        altitude = 44330.0f * (1.0f - powf( (pressure/100) / 1013.25f, 0.1903f));
-    }
-
-    d1_polled = false; d2_polled = false;
-    d1_read = false; d2_read = false;
-
-    return true;
+  runTimeVariables.lastRead = millis();
+  return true;
 }
 
-void MS56XX::calculateTemperature(){
-    dT_temp_diff = float(d2_temperature) - float(c5_temp_ref) * float(1 << 8);
-    float actual_temperature = 2000.0f + dT_temp_diff * float(c6_temp_coef_sens) / float(1 << 23);
-    
-    //Might add second order temperature compensation for less than 20C temperatures
+void MS56XX::convert(const uint8_t addr, uint8_t bits)
+{
+  //  values from page 3 datasheet - MAX column (rounded up)
+  uint16_t del[5] = {600, 1200, 2300, 4600, 9100};
 
-    temperature = actual_temperature/100.0f; // Degrees Centigrade
+  uint8_t index = bits;
+  if (index < 8)
+    index = 8;
+  else if (index > 12)
+    index = 12;
+  index -= 8;
+  uint8_t offset = index * 2;
+  command(addr + offset);
+
+  uint16_t waitTime = del[index];
+  uint32_t start = micros();
+  //  while loop prevents blocking RTOS
+  while (micros() - start < waitTime)
+  {
+    yield();
+    delayMicroseconds(10);
+  }
 }
 
-void MS56XX::calculateCompensatedPressure(){
-    float offset = float(c2_pres_off) * float(1 << (17 - var_const)) + float(c4_temp_coef_pres_off) * float(dT_temp_diff)/float(1 << (6 + var_const));
-    float sens = float(c1_pres_sens) * float(1 << (16 - var_const)) + float(c3_temp_coef_pres_sens) * float(dT_temp_diff)/float(1 << (7 + var_const));
-    float comp_pressure = ( (float(d1_pressure) * sens / float(1 << 21)) - offset)/float(1 << 15);
+uint16_t MS56XX::readProm(uint8_t reg)
+{
+  //  last EEPROM register is CRC - Page 13 datasheet.
+  uint8_t promCRCRegister = 7;
+  if (reg > promCRCRegister)
+    return 0;
 
-    pressure = comp_pressure; // Pascals
+  uint8_t offset = reg * 2;
+  command(MS56XX_CMD_READ_PROM + offset);
+  if (runTimeVariables.result == 0)
+  {
+    uint8_t length = 2;
+    int bytes = _config.wire->requestFrom(_config.i2c_address, length);
+    if (bytes >= length)
+    {
+      uint16_t value = _config.wire->read() * 256;
+      value += _config.wire->read();
+      return value;
+    }
+    return 0;
+  }
+  return 0;
 }
+
+uint32_t MS56XX::readADC()
+{
+  command(MS56XX_CMD_READ_ADC);
+  if (runTimeVariables.result == 0)
+  {
+    uint8_t length = 3;
+    int bytes = _config.wire->requestFrom(_config.i2c_address, length);
+    if (bytes >= length)
+    {
+      uint32_t value = _config.wire->read() * 65536UL;
+      value += _config.wire->read() * 256UL;
+      value += _config.wire->read();
+      return value;
+    }
+    return 0UL;
+  }
+  return 0UL;
+}
+
+int MS56XX::command(const uint8_t command)
+{
+  yield();
+  _config.wire->beginTransmission(_config.i2c_address);
+  _config.wire->write(command);
+  runTimeVariables.result = _config.wire->endTransmission();
+  return runTimeVariables.result;
+}
+
+void MS56XX::initConstants(uint8_t altered_mode)
+{
+  C[0] = 1;
+  C[1] = 32768L;
+  C[2] = 65536L;
+  C[3] = 3.90625E-3;
+  C[4] = 7.8125E-3;
+  C[5] = 256;
+  C[6] = 1.1920928955E-7;
+
+  if (altered_mode == 1) 
+  {
+    C[1] = 65536L;
+    C[2] = 131072L;
+    C[3] = 7.8125E-3;
+    C[4] = 1.5625e-2;
+  }
+}
+
 #endif
