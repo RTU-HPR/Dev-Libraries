@@ -1,3 +1,4 @@
+#ifdef SD_CARD_WRAPPER_ENABLE
 #include <Sd_card_wrapper.h>
 #include <cmath>
 
@@ -22,14 +23,14 @@ bool SD_Card_Wrapper::init(const Config &config)
 
     if (!_flash->setConfig(sd_config))
     {
-        error("Config not set");
+        error("CONFIG != SET");
         return false;
     }
 
     // Initialize flash
     if (!_flash->begin())
     {
-        error("FileSystem init error");
+        error("FileSys != BEGIN");
         return false;
     }
     // has to be here for init flash to work
@@ -38,7 +39,7 @@ bool SD_Card_Wrapper::init(const Config &config)
     // find flash files and print header
     if (!init_flash_files(config))
     {
-        error("Failed init filepaths");
+        error("FilePaths != INIT");
         set_initialized(false);
         return false;
     }
@@ -52,6 +53,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     {
         return false;
     }
+
     // Determine file name index for final path
     int file_name_nr = 0;
     bool header_required = true;
@@ -60,13 +62,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         file_name_nr++;
     }
 
-    // check if should open previous files
     if (config.open_last_files)
     {
-        // check if valid nr. If not valid just create new files
         if (file_name_nr == 0)
         {
-            error("Trying to open add to non existing files: wont open last files");
+            error("READ FILE != EXIST: WONT OPEN LAST FILES");
         }
         else
         {
@@ -88,7 +88,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         File data_file = _flash->open(_data_file_path, "a+");
         if (!data_file)
         {
-            error("Failed opening data file");
+            error("Data file != OPEN");
             return false;
         }
         else
@@ -101,7 +101,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         File info_file = _flash->open(_info_file_path, "a+");
         if (!info_file)
         {
-            error("Failed opening info file");
+            error("Info file != OPEN");
             return false;
         }
         else
@@ -114,7 +114,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         File error_file = _flash->open(_error_file_path, "a+");
         if (!error_file)
         {
-            error("Failed opening error file");
+            error("Error file != OPEN");
             return false;
         }
         else
@@ -127,7 +127,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         File config_file = _flash->open(_config_file_path, "a+");
         if (!config_file)
         {
-            error("Failed opening config file");
+            error("Config file != OPEN");
             return false;
         }
         else
@@ -267,3 +267,4 @@ bool SD_Card_Wrapper::read_config(String &config)
 {
     return read_last_line_from_file(config, _config_file_path);
 }
+#endif // SD_CARD_WRAPPER_ENABLE

@@ -25,7 +25,7 @@ public:
         String error_file_header;
         String config_file_header;
 
-        bool open_last_files; // if true, will open the last files in the file name bases insted of creating new ones. Use for recovery. by default false
+        bool open_last_files; // Use for recovery, else leave false
     };
 
 private:
@@ -39,6 +39,7 @@ private:
 
     bool init_flash_files(const Config &config);
     bool write_to_file(const String &msg, const String &file_path);
+    // ignores header
     bool read_last_line_from_file(String &msg, const String &file_path);
 
 public:
@@ -51,8 +52,7 @@ public:
      * @return true init good
      * @return false init bad
      */
-    bool
-    init(const Config &config);
+    bool init(const Config &config);
     bool format_storage();
 
     // true if write good
@@ -67,6 +67,5 @@ public:
     bool read_info(String &info);
     bool read_error(String &error);
     bool read_config(String &config);
-
-}
+};
 // #endif // SD_CARD_WRAPPER_ENABLE
