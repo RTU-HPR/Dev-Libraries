@@ -139,7 +139,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     return true;
 }
 
-bool SD_Card_Wrapper::format_storage()
+bool SD_Card_Wrapper::clean_storage(const Config &config)
 {
     if (!get_initialized())
     {
@@ -148,7 +148,7 @@ bool SD_Card_Wrapper::format_storage()
 
     if (_flash->format())
     {
-        return true;
+        return init_flash_files(config);
     }
     else
     {

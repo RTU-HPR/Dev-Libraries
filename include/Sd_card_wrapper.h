@@ -53,7 +53,7 @@ public:
      * @return false init bad
      */
     bool init(const Config &config);
-    bool format_storage();
+    bool clean_storage(const Config &config);
 
     // true if write good
     bool write_data(const String &msg);
