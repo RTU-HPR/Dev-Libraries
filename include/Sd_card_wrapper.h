@@ -1,5 +1,5 @@
 #pragma once
-// #ifdef SD_CARD_WRAPPER_ENABLE
+#ifdef SD_CARD_WRAPPER_ENABLE
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -68,4 +68,4 @@ public:
     bool read_error(String &error);
     bool read_config(String &config);
 };
-// #endif // SD_CARD_WRAPPER_ENABLE
+#endif // SD_CARD_WRAPPER_ENABLE
