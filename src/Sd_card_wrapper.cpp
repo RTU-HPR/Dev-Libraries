@@ -66,7 +66,7 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     {
         if (file_name_nr == 0)
         {
-            error("READ FILE != EXIST: WONT OPEN LAST FILES");
+            error("READ FILE != EXIST: WONT OPEN LAST FILES (BAD CONFIG)");
         }
         else
         {
@@ -148,10 +148,21 @@ bool SD_Card_Wrapper::clean_storage(const Config &config)
 
     if (_flash->format())
     {
-        return init_flash_files(config);
+        Config config_temp = config;
+        config_temp.open_last_files = false;
+        if (!init_flash_files(config_temp))
+        {
+            error("Failed init_flash_files() after format");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
     else
     {
+        error("Flash != FORMAT");
         return false;
     }
 }
@@ -184,10 +195,14 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
     {
         return false;
     }
-
+    if (file.size() >= 2)
+    {
+        file.close();
+        return false;
+    }
     // long file optimized method
-    unsigned long seek_location = file.size() - 1; // to ignore the last \n
-    file.seek(seek_location - 1);
+    unsigned long seek_location = file.size() - 2; // to ignore the last \n
+    file.seek(seek_location);
     // locate last \n
     while (file.available())
     {
@@ -197,7 +212,7 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
             break;
         }
         seek_location--;
-        file.seek(seek_location - 1);
+        file.seek(seek_location);
     }
     // will prevent reading the header
     if (seek_location == 0)
