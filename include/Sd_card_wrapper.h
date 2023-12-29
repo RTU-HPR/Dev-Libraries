@@ -3,7 +3,12 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+#ifdef ARDUINO_ARCH_RP2040
 #include <SDFS.h>
+#else // ESP32
+#include <SD.h>
+// #include "esp_vfs_fat.h"
+#endif
 #include "Sensor_wrapper.h"
 
 class SD_Card_Wrapper : public Sensor_Wrapper
@@ -12,7 +17,7 @@ public:
     struct Config
     {
         // spi bus
-        HardwareSPI *spi_bus; // bus must be started before passing it to this class
+        SPIClass *spi_bus; // bus must be started before passing it to this class
         int cs_pin;
         // file name bases
         String data_file_path_base;
@@ -30,7 +35,11 @@ public:
 
 private:
     // SD card object
+#ifdef ARDUINO_ARCH_RP2040
     FS *_flash;
+#else // ESP32
+    SDFS *_flash;
+#endif
 
     String _data_file_path;
     String _info_file_path;
@@ -41,6 +50,7 @@ private:
     bool write_to_file(const String &msg, const String &file_path);
     // ignores header
     bool read_last_line_from_file(String &msg, const String &file_path);
+    bool delete_all_files(String dir_name);
 
 public:
     SD_Card_Wrapper(void (*error_function)(String) = nullptr, String component_name = "SD Card");

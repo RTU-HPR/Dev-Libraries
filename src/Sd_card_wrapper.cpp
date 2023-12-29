@@ -16,6 +16,7 @@ SD_Card_Wrapper::~SD_Card_Wrapper()
 }
 bool SD_Card_Wrapper::init(const Config &config)
 {
+#ifdef ARDUINO_ARCH_RP2040
     _flash = &SDFS;
     SDFSConfig sd_config;
     sd_config.setCSPin(config.cs_pin);
@@ -33,6 +34,15 @@ bool SD_Card_Wrapper::init(const Config &config)
         error("FileSys != BEGIN");
         return false;
     }
+#else // ESP32
+    // possible issue with max_files default value - couldn't find the exact meaning of it
+    if (!_flash->begin(config.cs_pin, *config.spi_bus))
+    {
+        error("FileSys != BEGIN");
+        return false;
+    }
+#endif
+
     // has to be here for init flash to work
     set_initialized(true);
 
@@ -85,7 +95,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     if (header_required)
     {
         _flash->remove(_data_file_path);
+#ifdef ARDUINO_ARCH_RP2040
         File data_file = _flash->open(_data_file_path, "a+");
+#else // ESP32
+        File data_file = _flash->open(_data_file_path, "a", true);
+#endif
         if (!data_file)
         {
             error("Data file != OPEN");
@@ -96,9 +110,12 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
             data_file.println(config.data_file_header);
             data_file.close();
         }
-
         _flash->remove(_info_file_path);
+#ifdef ARDUINO_ARCH_RP2040
         File info_file = _flash->open(_info_file_path, "a+");
+#else // ESP32
+        File info_file = _flash->open(_info_file_path, "a", true);
+#endif
         if (!info_file)
         {
             error("Info file != OPEN");
@@ -111,7 +128,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         }
 
         _flash->remove(_error_file_path);
+#ifdef ARDUINO_ARCH_RP2040
         File error_file = _flash->open(_error_file_path, "a+");
+#else // ESP32
+        File error_file = _flash->open(_error_file_path, "a", true);
+#endif
         if (!error_file)
         {
             error("Error file != OPEN");
@@ -124,7 +145,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         }
 
         _flash->remove(_config_file_path);
+#ifdef ARDUINO_ARCH_RP2040
         File config_file = _flash->open(_config_file_path, "a+");
+#else // ESP32
+        File config_file = _flash->open(_config_file_path, "a", true);
+#endif
         if (!config_file)
         {
             error("Config file != OPEN");
@@ -139,8 +164,44 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     return true;
 }
 
+bool SD_Card_Wrapper::delete_all_files(String dir_name)
+{
+    if (!get_initialized())
+    {
+        return false;
+    }
+
+    File root = _flash->open(dir_name, "r");
+    if (!root)
+    {
+        error("DAF: File != open");
+        return false;
+    }
+    if (!root.isDirectory())
+    {
+        error("DAF: File != directory");
+        return false;
+    }
+
+    File file = root.openNextFile();
+    while (file)
+    {
+        if (file.isDirectory())
+        {
+            delete_all_files(String(file.name()));
+        }
+        else
+        {
+            _flash->remove(file.name());
+        }
+        file = root.openNextFile();
+    }
+    return true;
+}
+
 bool SD_Card_Wrapper::clean_storage(const Config &config)
 {
+#ifdef ARDUINO_ARCH_RP2040
     if (get_initialized())
     {
         _flash->end();
@@ -166,6 +227,32 @@ bool SD_Card_Wrapper::clean_storage(const Config &config)
         error("Flash != FORMAT");
         return false;
     }
+#else // ESP32
+    if (!get_initialized())
+    {
+        return false;
+    }
+
+    if (!delete_all_files("/"))
+    {
+        error("Flash != DELETE ALL FILES");
+        return false;
+    }
+    // quite a brutal approach, better would be to just init only the files again
+    _flash->end();
+
+    Config config_temp = config;
+    config_temp.open_last_files = false;
+    if (!init(config_temp))
+    {
+        error("!init() after format");
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+#endif
 }
 
 bool SD_Card_Wrapper::write_to_file(const String &msg, const String &file_path)
@@ -254,7 +341,11 @@ bool SD_Card_Wrapper::write_config(const String &msg, const Config &config)
     }
 
     _flash->remove(_config_file_path);
+#ifdef ARDUINO_ARCH_RP2040
     File config_file = _flash->open(_config_file_path, "a+");
+#else // ESP32
+    File config_file = _flash->open(_config_file_path, "a", true);
+#endif
     if (!config_file)
     {
         error("Failed opening config file");
