@@ -197,7 +197,7 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
         error("File != OPEN");
         return false;
     }
-    if (file.size() >= 2)
+    if (file.size() <= 2)
     {
         file.close();
         error("File TOO SMALL");
