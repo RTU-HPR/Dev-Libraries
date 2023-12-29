@@ -141,18 +141,19 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
 
 bool SD_Card_Wrapper::clean_storage(const Config &config)
 {
-    if (!get_initialized())
+    if (get_initialized())
     {
-        return false;
+        _flash->end();
+        set_initialized(false);
     }
 
     if (_flash->format())
     {
         Config config_temp = config;
         config_temp.open_last_files = false;
-        if (!init_flash_files(config_temp))
+        if (!init(config_temp))
         {
-            error("Failed init_flash_files() after format");
+            error("Failed init() after format");
             return false;
         }
         else
@@ -193,11 +194,13 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
     File file = _flash->open(file_path, "r");
     if (!file)
     {
+        error("File != OPEN");
         return false;
     }
     if (file.size() >= 2)
     {
         file.close();
+        error("File TOO SMALL");
         return false;
     }
     // long file optimized method
@@ -217,6 +220,7 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
     // will prevent reading the header
     if (seek_location == 0)
     {
+        error("Trying to READ HEADER");
         return false;
     }
     seek_location++; // move to the start of the line instead of \n
