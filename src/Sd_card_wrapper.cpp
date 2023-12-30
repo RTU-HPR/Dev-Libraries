@@ -128,7 +128,6 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         error_file.close();
     }
 
-    _flash->remove(_config_file_path);
 #ifdef ARDUINO_ARCH_RP2040
     File config_file = _flash->open(_config_file_path, "a+");
 #else // ESP32
@@ -279,17 +278,17 @@ bool SD_Card_Wrapper::read_last_line_from_file(String &msg, const String &file_p
         {
             break;
         }
+        // will prevent reading the header
+        if (seek_location == 0)
+        {
+            error("Trying to READ HEADER");
+            return false;
+        }
         seek_location--;
         file.seek(seek_location);
     }
-    // will prevent reading the header
-    if (seek_location == 0)
-    {
-        error("Trying to READ HEADER");
-        return false;
-    }
-    seek_location++; // move to the start of the line instead of \n
 
+    seek_location++; // move to the start of the line instead of \n
     // Read string
     file.seek(seek_location);
     msg = file.readStringUntil('\n');
