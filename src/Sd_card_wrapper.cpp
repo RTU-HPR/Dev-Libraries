@@ -128,6 +128,12 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         error_file.close();
     }
 
+    bool config_header_required = true;
+    if (_flash->exists(_config_file_path))
+    {
+        config_header_required = false;
+    }
+
 #ifdef ARDUINO_ARCH_RP2040
     File config_file = _flash->open(_config_file_path, "a+");
 #else // ESP32
@@ -140,8 +146,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     }
     else
     {
-        config_file.println(config.config_file_header);
-        config_file.close();
+        if (config_header_required)
+        {
+            config_file.println(config.config_file_header);
+            config_file.close();
+        }
     }
     return true;
 }
