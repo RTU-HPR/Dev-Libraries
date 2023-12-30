@@ -29,8 +29,6 @@ public:
         String info_file_header;
         String error_file_header;
         String config_file_header;
-
-        bool open_last_files; // Use for recovery, else leave false
     };
 
 private:

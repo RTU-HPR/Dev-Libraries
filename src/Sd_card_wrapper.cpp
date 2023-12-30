@@ -66,23 +66,9 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
 
     // Determine file name index for final path
     int file_name_nr = 0;
-    bool header_required = true;
     while (_flash->exists(config.data_file_path_base + String(file_name_nr) + ".csv"))
     {
         file_name_nr++;
-    }
-
-    if (config.open_last_files)
-    {
-        if (file_name_nr == 0)
-        {
-            error("READ FILE != EXIST: WONT OPEN LAST FILES (BAD CONFIG)");
-        }
-        else
-        {
-            header_required = false;
-            file_name_nr--;
-        }
     }
 
     // Get the file full path
@@ -92,74 +78,71 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     _config_file_path = config.config_file_path + ".csv"; // always the same config file path
 
     // If required, write the file header. When writing header delete the file if it was there before
-    if (header_required)
+    _flash->remove(_data_file_path);
+#ifdef ARDUINO_ARCH_RP2040
+    File data_file = _flash->open(_data_file_path, "a+");
+#else // ESP32
+    File data_file = _flash->open(_data_file_path, "a", true);
+#endif
+    if (!data_file)
     {
-        _flash->remove(_data_file_path);
+        error("Data file != OPEN");
+        return false;
+    }
+    else
+    {
+        data_file.println(config.data_file_header);
+        data_file.close();
+    }
+    _flash->remove(_info_file_path);
 #ifdef ARDUINO_ARCH_RP2040
-        File data_file = _flash->open(_data_file_path, "a+");
+    File info_file = _flash->open(_info_file_path, "a+");
 #else // ESP32
-        File data_file = _flash->open(_data_file_path, "a", true);
+    File info_file = _flash->open(_info_file_path, "a", true);
 #endif
-        if (!data_file)
-        {
-            error("Data file != OPEN");
-            return false;
-        }
-        else
-        {
-            data_file.println(config.data_file_header);
-            data_file.close();
-        }
-        _flash->remove(_info_file_path);
-#ifdef ARDUINO_ARCH_RP2040
-        File info_file = _flash->open(_info_file_path, "a+");
-#else // ESP32
-        File info_file = _flash->open(_info_file_path, "a", true);
-#endif
-        if (!info_file)
-        {
-            error("Info file != OPEN");
-            return false;
-        }
-        else
-        {
-            info_file.println(config.info_file_header);
-            info_file.close();
-        }
+    if (!info_file)
+    {
+        error("Info file != OPEN");
+        return false;
+    }
+    else
+    {
+        info_file.println(config.info_file_header);
+        info_file.close();
+    }
 
-        _flash->remove(_error_file_path);
+    _flash->remove(_error_file_path);
 #ifdef ARDUINO_ARCH_RP2040
-        File error_file = _flash->open(_error_file_path, "a+");
+    File error_file = _flash->open(_error_file_path, "a+");
 #else // ESP32
-        File error_file = _flash->open(_error_file_path, "a", true);
+    File error_file = _flash->open(_error_file_path, "a", true);
 #endif
-        if (!error_file)
-        {
-            error("Error file != OPEN");
-            return false;
-        }
-        else
-        {
-            error_file.println(config.error_file_header);
-            error_file.close();
-        }
+    if (!error_file)
+    {
+        error("Error file != OPEN");
+        return false;
+    }
+    else
+    {
+        error_file.println(config.error_file_header);
+        error_file.close();
+    }
 
-        _flash->remove(_config_file_path);
+    _flash->remove(_config_file_path);
 #ifdef ARDUINO_ARCH_RP2040
-        File config_file = _flash->open(_config_file_path, "a+");
+    File config_file = _flash->open(_config_file_path, "a+");
 #else // ESP32
-        File config_file = _flash->open(_config_file_path, "a", true);
+    File config_file = _flash->open(_config_file_path, "a", true);
 #endif
-        if (!config_file)
-        {
-            error("Config file != OPEN");
-            return false;
-        }
-        else
-        {
-            config_file.println(config.config_file_header);
-            config_file.close();
-        }
+    if (!config_file)
+    {
+        error("Config file != OPEN");
+        return false;
+    }
+    else
+    {
+        config_file.println(config.config_file_header);
+        config_file.close();
     }
     return true;
 }
@@ -210,9 +193,7 @@ bool SD_Card_Wrapper::clean_storage(const Config &config)
 
     if (_flash->format())
     {
-        Config config_temp = config;
-        config_temp.open_last_files = false;
-        if (!init(config_temp))
+        if (!init(config))
         {
             error("Failed init() after format");
             return false;
@@ -240,10 +221,7 @@ bool SD_Card_Wrapper::clean_storage(const Config &config)
     }
     // quite a brutal approach, better would be to just init only the files again
     _flash->end();
-
-    Config config_temp = config;
-    config_temp.open_last_files = false;
-    if (!init(config_temp))
+    if (!init(config))
     {
         error("!init() after format");
         return false;
