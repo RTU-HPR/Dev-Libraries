@@ -26,3 +26,11 @@ Does ranging calls and calculates the masters position based on multiple ping lo
 The calculation part currently isn't tested and properly implemented (don't use)
 ### Tested radio modules
 - SX1280 - Works as expected
+
+# GPS wrapper
+Reads GPS data over I2C or UART.
+### Tested GPS modules
+- Ublox NEO9M - works as expected 
+    - PFC V1
+    - BFC V2
+- Currently, only Ublox module generations 8,9,10 are supported. For the rest use tinygps
