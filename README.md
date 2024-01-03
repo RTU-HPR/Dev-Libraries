@@ -18,7 +18,8 @@ Currently, the recommended way is to choose a specific commit in the main (stabl
 ### Tested platforms
 - PI PICO (earlephilhower) - Works as expected tested on:
     - PFC V1
-- ESP32  - Untested
+- ESP32  - works as expected
+    - Swift FC (Heltec V2)
 
 ## Ranging wrapper
 Does ranging calls and calculates the masters position based on multiple ping locaitons.
