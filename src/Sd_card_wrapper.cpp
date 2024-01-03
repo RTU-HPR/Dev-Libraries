@@ -35,6 +35,7 @@ bool SD_Card_Wrapper::init(const Config &config)
         return false;
     }
 #else // ESP32
+    _flash = &SD;
     // possible issue with max_files default value - couldn't find the exact meaning of it
     if (!_flash->begin(config.cs_pin, *config.spi_bus))
     {
@@ -78,11 +79,10 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
     _config_file_path = config.config_file_path + ".csv"; // always the same config file path
 
     // If required, write the file header. When writing header delete the file if it was there before
-    _flash->remove(_data_file_path);
 #ifdef ARDUINO_ARCH_RP2040
-    File data_file = _flash->open(_data_file_path, "a+");
+    File data_file = _flash->open(_data_file_path, "w+");
 #else // ESP32
-    File data_file = _flash->open(_data_file_path, "a", true);
+    File data_file = _flash->open(_data_file_path, "w", true);
 #endif
     if (!data_file)
     {
@@ -94,11 +94,11 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         data_file.println(config.data_file_header);
         data_file.close();
     }
-    _flash->remove(_info_file_path);
+
 #ifdef ARDUINO_ARCH_RP2040
-    File info_file = _flash->open(_info_file_path, "a+");
+    File info_file = _flash->open(_info_file_path, "w+");
 #else // ESP32
-    File info_file = _flash->open(_info_file_path, "a", true);
+    File info_file = _flash->open(_info_file_path, "w", true);
 #endif
     if (!info_file)
     {
@@ -111,11 +111,10 @@ bool SD_Card_Wrapper::init_flash_files(const Config &config)
         info_file.close();
     }
 
-    _flash->remove(_error_file_path);
 #ifdef ARDUINO_ARCH_RP2040
-    File error_file = _flash->open(_error_file_path, "a+");
+    File error_file = _flash->open(_error_file_path, "w+");
 #else // ESP32
-    File error_file = _flash->open(_error_file_path, "a", true);
+    File error_file = _flash->open(_error_file_path, "w", true);
 #endif
     if (!error_file)
     {
@@ -162,10 +161,11 @@ bool SD_Card_Wrapper::delete_all_files(String dir_name)
         return false;
     }
 
+    // Serial.println("DAF: deleting files in: " + dir_name);
     File root = _flash->open(dir_name, "r");
     if (!root)
     {
-        error("DAF: File != open");
+        error("DAF: File != open: " + dir_name);
         return false;
     }
     if (!root.isDirectory())
@@ -175,19 +175,34 @@ bool SD_Card_Wrapper::delete_all_files(String dir_name)
     }
 
     File file = root.openNextFile();
+    bool dir_clean_status = true;
     while (file)
     {
         if (file.isDirectory())
         {
-            delete_all_files(String(file.name()));
+            // Serial.println("DAF: going deeper into: " + String(file.path()));
+            delete_all_files(String(file.path()));
         }
         else
         {
-            _flash->remove(file.name());
+            Serial.println("DAF: removing: " + String(file.path()));
+            if (!_flash->remove(file.path()))
+            {
+                error("DAF: File != remove: " + String(file.path()));
+            }
+            if (_flash->exists(file.path()))
+            {
+                error("DAF: File != exists: " + String(file.path()));
+                dir_clean_status = false;
+            }
+            else
+            {
+                // Serial.println("DAF: File removed: " + String(file.path()));
+            }
         }
         file = root.openNextFile();
     }
-    return true;
+    return dir_clean_status;
 }
 
 bool SD_Card_Wrapper::clean_storage(const Config &config)
