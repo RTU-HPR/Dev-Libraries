@@ -185,7 +185,7 @@ bool SD_Card_Wrapper::delete_all_files(String dir_name)
         }
         else
         {
-            Serial.println("DAF: removing: " + String(file.path()));
+            // Serial.println("DAF: removing: " + String(file.path()));
             if (!_flash->remove(file.path()))
             {
                 error("DAF: File != remove: " + String(file.path()));
