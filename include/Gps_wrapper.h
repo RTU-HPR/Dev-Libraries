@@ -83,7 +83,7 @@ public:
      * @return true read success, data was updated
      * @return false data not read, data wan not updated
      */
-    bool read(Gps_Data &gps_data);
+    bool read(Gps_Data &data, bool &position_valid, bool &time_valid);
 
     /**
      * @brief

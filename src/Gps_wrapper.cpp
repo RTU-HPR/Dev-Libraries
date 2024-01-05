@@ -88,14 +88,31 @@ bool Gps_Wrapper::begin(Gps_Config_UART config_uart)
     return true;
 }
 
-bool Gps_Wrapper::read(Gps_Data &data)
+bool Gps_Wrapper::read(Gps_Data &data, bool &position_valid, bool &time_valid)
 {
+    position_valid = false;
+    time_valid = false;
     if (!get_initialized())
     {
         return false;
     }
+    if (!_gps.getPVT())
+    {
+        return false;
+    }
 
-    if (_gps.getPVT() && (_gps.getInvalidLlh() == false))
+    if (_gps.getTimeValid())
+    {
+        data.epoch_time = _gps.getUnixEpoch();
+        data.year = _gps.getYear();
+        data.month = _gps.getMonth();
+        data.day = _gps.getDay();
+        data.hour = _gps.getHour();
+        data.minute = _gps.getMinute();
+        data.second = _gps.getSecond();
+        time_valid = true;
+    }
+    if (_gps.getInvalidLlh() == false)
     {
         long new_gps_lat_raw = _gps.getLatitude();
         long new_gps_lng_raw = _gps.getLongitude();
@@ -106,12 +123,9 @@ bool Gps_Wrapper::read(Gps_Data &data)
 
         // SANITY CHECK
         // Check if location is somewhere in the northern eastern Europe adn we have more than 3 new_satellites
-        if (new_satellites <= 3)
+        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35) && (new_satellites > 3)))
         {
-            return false;
-        }
-        if (((50 <= new_gps_lat && new_gps_lat <= 60) && (15 <= new_gps_lng && new_gps_lng <= 35)))
-        {
+
             data.lat = new_gps_lat;
             data.lng = new_gps_lng;
             data.altitude = _gps.getAltitude() / 1000.0;
@@ -119,21 +133,21 @@ bool Gps_Wrapper::read(Gps_Data &data)
             data.speed = _gps.getGroundSpeed() / 1000.0;
             data.heading = _gps.getHeading() / 10000.0;
             data.pdop = _gps.getPDOP() / 100.0;
-            data.epoch_time = _gps.getUnixEpoch();
-            data.year = _gps.getYear();
-            data.month = _gps.getMonth();
-            data.day = _gps.getDay();
-            data.hour = _gps.getHour();
-            data.minute = _gps.getMinute();
-            data.second = _gps.getSecond();
-            return true;
+            position_valid = true;
         }
         else
         {
             error("GPS location doesn't meet minimum: " + String(new_gps_lat, 6) + " " + String(new_gps_lng, 6) + " " + String(new_satellites));
         }
     }
-    return false;
+    if (time_valid || position_valid)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 bool Gps_Wrapper::configure(const Gps_Config &config)
