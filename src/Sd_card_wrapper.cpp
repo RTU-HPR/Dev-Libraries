@@ -160,6 +160,10 @@ bool SD_Card_Wrapper::delete_all_files(String dir_name)
     {
         return false;
     }
+#ifdef ARDUINO_ARCH_RP2040
+    // not implemented on RP2040 use format...
+    return false;
+#else
 
     // Serial.println("DAF: deleting files in: " + dir_name);
     File root = _flash->open(dir_name, "r");
@@ -203,6 +207,7 @@ bool SD_Card_Wrapper::delete_all_files(String dir_name)
         file = root.openNextFile();
     }
     return dir_clean_status;
+#endif
 }
 
 bool SD_Card_Wrapper::clean_storage(const Config &config)
