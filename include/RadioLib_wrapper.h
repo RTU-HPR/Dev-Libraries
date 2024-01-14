@@ -135,7 +135,7 @@ public:
      * @return true If transmit was successful
      * @return false If transmit failed
      */
-    bool transmit_bytes(uint8_t* bytes, uint8_t length);
+    bool transmit_bytes(uint8_t* bytes, size_t length);
 
     /**
      * @brief Read any received data

@@ -248,7 +248,7 @@ bool RadioLib_Wrapper<T>::transmit_bytes(uint8_t* bytes, size_t length)
   radio.finishTransmit();
 
   // Start transmitting
-  _action_status_code = radio.startTransmit(msg, length);
+  _action_status_code = radio.startTransmit(bytes, length);
 
   // If transmit failed, print error
   if (_action_status_code != RADIOLIB_ERR_NONE)
