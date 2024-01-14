@@ -128,6 +128,16 @@ public:
     bool transmit(String msg);
 
     /**
+     * @brief Send a message over the radio as bytes
+     *
+     * @param msg Bytes to send
+     * @param length Byte array length
+     * @return true If transmit was successful
+     * @return false If transmit failed
+     */
+    bool transmit_bytes(uint8_t* bytes, uint8_t length);
+
+    /**
      * @brief Read any received data
      *
      * @param msg Reference to variable where to save the message
@@ -137,6 +147,16 @@ public:
      * @return false If receive failed or no message was received
      */
     bool receive(String &msg, float &rssi, float &snr, double &frequency);
+
+    /**
+     * @brief Read any received data as bytes
+     * @param bytes Reference to uint8_t array where to save the message
+     * @param rssi Reference to variable where to save the message RSSI
+     * @param snr Reference to variable where to save the message SNR
+     * @return true If a message was received
+     * @return false If receive failed or no message was received
+    */
+    bool receive_bytes(uint8_t *bytes, float &rssi, float &snr, double &frequency);
 
     /**
      * @brief Modifies the original msg to add the checksum
