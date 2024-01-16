@@ -324,7 +324,7 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
 }
 
 template <typename T>
-bool RadioLib_Wrapper<T>::receive_bytes(uint8_t* data, float &rssi, float &snr, double &frequency)
+bool RadioLib_Wrapper<T>::receive_bytes(uint8_t *data, uint16_t &data_length, float &rssi, float &snr, double &frequency)
 {
   if (!get_initialized())
   {
@@ -347,6 +347,8 @@ bool RadioLib_Wrapper<T>::receive_bytes(uint8_t* data, float &rssi, float &snr, 
   {
     // Try to read received data
     _action_status_code = radio.readData(data, 0);
+
+    data_length = radio.getPacketLength();
 
     if (_action_status_code != RADIOLIB_ERR_NONE)
     {

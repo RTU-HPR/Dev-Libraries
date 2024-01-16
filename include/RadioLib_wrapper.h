@@ -151,12 +151,13 @@ public:
     /**
      * @brief Read any received data as bytes
      * @param bytes Reference to uint8_t array where to save the message
+     * @param data_length Reference to variable where to save the message length
      * @param rssi Reference to variable where to save the message RSSI
      * @param snr Reference to variable where to save the message SNR
      * @return true If a message was received
      * @return false If receive failed or no message was received
     */
-    bool receive_bytes(uint8_t *bytes, float &rssi, float &snr, double &frequency);
+    bool receive_bytes(uint8_t *bytes, uint16_t &data_length, float &rssi, float &snr, double &frequency);
 
     /**
      * @brief Modifies the original msg to add the checksum
