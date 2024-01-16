@@ -12,6 +12,74 @@ union Converter
 };
 
 /**
+ * @brief Calculate the CRC-16-CCITT checksum of a byte array
+ * @param data Pointer to data byte array
+ * @param length Length of data in packet
+ * @return CRC-16-CCITT checksum
+ * @note This function should not be used directly. Use add_crc_16_cciit_to_ccsds_packet() and check_crc_16_cciit_of_ccsds_packet() instead
+*/
+uint16_t calculate_crc_16_ccitt(const uint8_t *data, uint16_t length)
+{
+  uint16_t crc = 0xFFFF; // Initial value
+
+  for (uint16_t i = 0; i < length; i++)
+  {
+    crc ^= data[i]; // XOR with current byte
+
+    for (uint8_t j = 0; j < 8; j++)
+    {
+      if (crc & 0x0001) // If LSB is 1
+      {
+        crc >>= 1;     // Right shift by 1
+        crc ^= 0x8408; // XOR with polynomial 0x8408
+      }
+      else
+      {
+        crc >>= 1; // Right shift by 1
+      }
+    }
+  }
+
+  return crc;
+}
+
+/**
+ * @brief Add a CRC-16-CCITT checksum to the end of a CCSDS packet
+ * @param ccsds_packet Pointer to CCSDS packet byte array
+ * @param ccsds_packet_length Length of CCSDS packet
+ * @note This function is already called in create_ccsds_packet(). No need to call it separately
+*/
+void add_crc_16_cciit_to_ccsds_packet(uint8_t *&ccsds_packet, uint16_t ccsds_packet_length)
+{
+  uint16_t crc = calculate_crc_16_ccitt(ccsds_packet, ccsds_packet_length - 2); // Ignore the empty checksum bytes at the end
+
+  // Add CRC to the end of the packet
+  ccsds_packet[ccsds_packet_length - 2] = (crc >> 8) & 0xFF; // MSB
+  ccsds_packet[ccsds_packet_length - 1] = crc & 0xFF;        // LSB
+}
+
+/**
+ * @brief Check the CRC-16-CCITT checksum of a CCSDS packet
+ * @param ccsds_packet Pointer to CCSDS packet byte array
+ * @param ccsds_packet_length Length of CCSDS packet
+ * @return True if checksum is correct, false if checksum is incorrect
+*/
+bool check_crc_16_cciit_of_ccsds_packet(uint8_t *ccsds_packet, uint16_t &ccsds_packet_length)
+{
+  uint16_t crc = calculate_crc_16_ccitt(ccsds_packet, ccsds_packet_length - 2); // Ignore the received checksum bytes at the end
+
+  // Check CRC
+  if (ccsds_packet[ccsds_packet_length - 2] == ((crc >> 8) & 0xFF) && ccsds_packet[ccsds_packet_length - 1] == (crc & 0xFF))
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+/**
  * @brief Create a CCSDS primary header
  * @param apid Application ID
  * @param sequence_count Sequence count
@@ -270,75 +338,6 @@ void read_position_from_ccsds_telemetry(uint8_t *&ccsds_data, float &latitude, f
   latitude = data_values[0].f;
   longitude = data_values[1].f;
   altitude = data_values[2].f;
-}
-
-
-/**
- * @brief Calculate the CRC-16-CCITT checksum of a byte array
- * @param data Pointer to data byte array
- * @param length Length of data in packet
- * @return CRC-16-CCITT checksum
- * @note This function should not be used directly. Use add_crc_16_cciit_to_ccsds_packet() and check_crc_16_cciit_of_ccsds_packet() instead
-*/
-uint16_t calculate_crc_16_ccitt(const uint8_t *data, uint16_t length)
-{
-  uint16_t crc = 0xFFFF; // Initial value
-
-  for (uint16_t i = 0; i < length; i++)
-  {
-    crc ^= data[i]; // XOR with current byte
-
-    for (uint8_t j = 0; j < 8; j++)
-    {
-      if (crc & 0x0001) // If LSB is 1
-      {
-        crc >>= 1;     // Right shift by 1
-        crc ^= 0x8408; // XOR with polynomial 0x8408
-      }
-      else
-      {
-        crc >>= 1; // Right shift by 1
-      }
-    }
-  }
-
-  return crc;
-}
-
-/**
- * @brief Add a CRC-16-CCITT checksum to the end of a CCSDS packet
- * @param ccsds_packet Pointer to CCSDS packet byte array
- * @param ccsds_packet_length Length of CCSDS packet
- * @note This function is already called in create_ccsds_packet(). No need to call it separately
-*/
-void add_crc_16_cciit_to_ccsds_packet(uint8_t *&ccsds_packet, uint16_t ccsds_packet_length)
-{
-  uint16_t crc = calculate_crc_16_ccitt(ccsds_packet, ccsds_packet_length - 2); // Ignore the empty checksum bytes at the end
-
-  // Add CRC to the end of the packet
-  ccsds_packet[ccsds_packet_length - 2] = (crc >> 8) & 0xFF; // MSB
-  ccsds_packet[ccsds_packet_length - 1] = crc & 0xFF;        // LSB
-}
-
-/**
- * @brief Check the CRC-16-CCITT checksum of a CCSDS packet
- * @param ccsds_packet Pointer to CCSDS packet byte array
- * @param ccsds_packet_length Length of CCSDS packet
- * @return True if checksum is correct, false if checksum is incorrect
-*/
-bool check_crc_16_cciit_of_ccsds_packet(uint8_t *ccsds_packet, uint16_t &ccsds_packet_length)
-{
-  uint16_t crc = calculate_crc_16_ccitt(ccsds_packet, ccsds_packet_length - 2); // Ignore the received checksum bytes at the end
-
-  // Check CRC
-  if (ccsds_packet[ccsds_packet_length - 2] == ((crc >> 8) & 0xFF) && ccsds_packet[ccsds_packet_length - 1] == (crc & 0xFF))
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
 }
 
 #endif // CCSDS_PACKETS_ENABLE
