@@ -6,7 +6,7 @@ AdcVoltage::AdcVoltage(void (*error_function)(String), String sensor_name) : Sen
   return;
 }
 
-bool AdcVoltage::begin(AdcVoltage_Config &config)
+bool AdcVoltage::begin(const AdcVoltage_Config &config)
 {
   // Copy the passed pin to object
   _pin = config.pin;
