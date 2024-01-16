@@ -1,7 +1,7 @@
 /*
   This library is used for the to read voltage from a voltage divider circuit.
 */
-
+#pragma once
 #ifdef ANALOG_VOLTAGE_READER_ENABLE
 
 #include "Sensor_wrapper.h"
@@ -44,7 +44,7 @@ public:
    * @param config The configuration object containing the settings.
    * @return True if the initialization is successful, false otherwise.
    */
-  bool begin(AdcVoltage_Config &config);
+  bool begin(const AdcVoltage_Config &config);
 
   /**
    * @brief Reads the  voltage.
