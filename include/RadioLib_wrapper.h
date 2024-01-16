@@ -50,6 +50,8 @@ private:
      */
     bool configure_tx_rx_switching(int rx_enable, int tx_enable);
 
+    bool setBoostedRx();
+
     uint16_t calculate_CRC16_CCITT_checksum(const String &msg);
 
 public:

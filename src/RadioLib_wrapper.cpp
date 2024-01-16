@@ -111,6 +111,7 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
         return false;
     };
 
+
     if (radio_config.rf_switching == Radio_Config::Rf_Switching::Gpio)
     {
         if (bool state = configure_tx_rx_switching(radio_config.rx_enable, radio_config.tx_enable) != true)
@@ -129,6 +130,23 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
     }
 
     return true;
+}
+
+template <typename T>
+bool RadioLib_Wrapper<T>::setBoostedRx()
+{
+  return true;
+}
+
+template <>
+bool RadioLib_Wrapper<SX1262>::setBoostedRx()
+{
+if (radio.setRxBoostedGainMode(true, true) != RADIOLIB_ERR_NONE)
+  {
+    error("Rx Boosted Gain Mode failed");
+    return false;
+  };
+  return true;
 }
 
 // There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
@@ -374,8 +392,9 @@ bool RadioLib_Wrapper<T>::receive_bytes(uint8_t *data, uint16_t &data_length, fl
   // Restart receiving TODO add error check for start recieve
   radio.startReceive();
   _action_type = Action_Type::Receive;
-  // If haven't received anything return false;
-  if (_action_status_code != RADIOLIB_ERR_NONE)
+
+  // If no errors and nothing was received, return false
+  if (_action_status_code != RADIOLIB_ERR_NONE || data_length == 0)
   {
     return false;
   }
