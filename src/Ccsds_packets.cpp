@@ -101,7 +101,7 @@ byte *create_ccsds_secondary_header(uint32_t gps_epoch_time, uint16_t subseconds
   return secondary_header;
 }
 
-byte *create_ccsds_packet(uint16_t apid, uint16_t sequence_count, uint32_t gps_epoch_time, uint16_t subseconds, String data, uint16_t &ccsds_packet_length)
+byte *create_ccsds_telemetry_packet(uint16_t apid, uint16_t sequence_count, uint32_t gps_epoch_time, uint16_t subseconds, String data, uint16_t &ccsds_packet_length)
 {
   // Convert each value in a string to corresponding data type and convert to byte array
   byte packet_data[244]; // LoRa max packet length is 256 bytes, but taking out 12 bytes for primary and secondary headers (256-12=244)
@@ -173,29 +173,32 @@ byte *create_ccsds_packet(uint16_t apid, uint16_t sequence_count, uint32_t gps_e
   return packet;
 }
 
-void parse_ccsds(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length)
+void parse_ccsds_telecommand(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint16_t &packet_id, byte *&ccsds_data, uint16_t &data_length)
 {
-  // Read primary header
+  // Read primary header (6 bytes)
   byte packet_version_number = (packet[0] >> 5) & 0x07;
   byte packet_identification_field[2] = {static_cast<byte>(packet[0] & 0x1F), packet[1]};
   byte packet_sequence_control[2] = {packet[2], packet[3]};
   byte packet_data_length[2] = {packet[4], packet[5]};
 
-  // Read secondary header
-  byte gps_epoch_time_bytes[4] = {packet[6], packet[7], packet[8], packet[9]};
-  byte subseconds_bytes[2] = {packet[10], packet[11]};
+  // Read packet id (2 bytes)
+  byte packet_id_bytes[2] = {packet[6], packet[7]};
 
   // Convert bytes to integers
   apid = ((packet_identification_field[0] & 0x07) << 8) | packet_identification_field[1];
   sequence_count = ((packet_sequence_control[0] << 8) | packet_sequence_control[1]) & 0x3FFF;
-  gps_epoch_time = (gps_epoch_time_bytes[0] << 24) | (gps_epoch_time_bytes[1] << 16) | (gps_epoch_time_bytes[2] << 8) | gps_epoch_time_bytes[3];
-  subseconds = (subseconds_bytes[0] << 8) | subseconds_bytes[1];
   data_length = (packet_data_length[0] << 8) | packet_data_length[1];
+  packet_id = (packet_id_bytes[0] << 8) | packet_id_bytes[1];
 
   // Read data
-  // Data starts at byte 12 until the end of the packet
+  // Data starts at byte 8 until the end of the packet
+  if (data_length == 0)
+  {
+    ccsds_data = NULL;
+    return;
+  }
   ccsds_data = new byte[data_length];
-  memcpy(ccsds_data, packet + 12, data_length);
+  memcpy(ccsds_data, packet + 8, data_length);
 }
 
 void extract_ccsds_data_values(byte *ccsds_data, Converter *data_values, String data_format)
@@ -218,7 +221,7 @@ void extract_ccsds_data_values(byte *ccsds_data, Converter *data_values, String 
     // Get value
     String value = data_format.substring(start, end);
 
-    // Read value from packet
+    // Read value from packet (MSB first)
     if (value == "float") // Float (4 bytes)
     {
       data_values[value_index].b[3] = ccsds_data[data_index++];

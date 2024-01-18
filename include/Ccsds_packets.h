@@ -67,20 +67,18 @@ byte *create_ccsds_secondary_header(uint32_t gps_epoch_time, uint16_t subseconds
  * @return Pointer to CCSDS packet byte array
  * @note The CCSDS packet must be deleted after use
  */
-byte *create_ccsds_packet(uint16_t apid, uint16_t sequence_count, uint32_t gps_epoch_time, uint16_t subseconds, String data, uint16_t &ccsds_packet_length);
+byte *create_ccsds_telemetry_packet(uint16_t apid, uint16_t sequence_count, uint32_t gps_epoch_time, uint16_t subseconds, String data, uint16_t &ccsds_packet_length);
 
 /**
  * @brief Parse a CCSDS packet, extracting the primary header, secondary header, and data
  * @param packet Pointer to CCSDS packet byte array
  * @param apid Application ID
  * @param sequence_count Sequence count
- * @param gps_epoch_time GPS epoch time
- * @param subseconds Subseconds
  * @param ccsds_data Pointer to data byte array
  * @param data_length Length of data in packet
  * @note The data must be deleted after use
  */
-void parse_ccsds(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length);
+void parse_ccsds_telecommand(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint16_t &packet_id, byte *&ccsds_data, uint16_t &data_length);
 
 /**
  * @brief Read a CCSDS packet data, using the data format to convert the data to the correct data type
