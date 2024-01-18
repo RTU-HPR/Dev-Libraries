@@ -80,7 +80,7 @@ byte *create_ccsds_telemetry_packet(uint16_t apid, uint16_t sequence_count, uint
  * @param data_length Length of data in packet
  * @note The data must be deleted after use
  */
-void parse_ccsds_telecommand(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length);
+void parse_ccsds_telemetry(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length);
 
 /**
  * @brief Parse a CCSDS telecommand packet, extracting the primary header, packet id and data

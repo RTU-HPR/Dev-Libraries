@@ -173,7 +173,7 @@ byte *create_ccsds_telemetry_packet(uint16_t apid, uint16_t sequence_count, uint
   return packet;
 }
 
-void parse_ccsds_telecommand(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length)
+void parse_ccsds_telemetry(byte *packet, uint16_t &apid, uint16_t &sequence_count, uint32_t &gps_epoch_time, uint16_t &subseconds, byte *&ccsds_data, uint16_t &data_length)
 {
   // Read primary header (6 bytes)
   byte packet_version_number = (packet[0] >> 5) & 0x07;
