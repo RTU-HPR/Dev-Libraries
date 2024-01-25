@@ -145,7 +145,7 @@ uint16_t MS56XX::readProm(uint8_t reg)
   if (runTimeVariables.result == 0)
   {
     uint8_t length = 2;
-    int bytes = _config.wire->requestFrom(_config.i2c_address, length);
+    int bytes = _config.wire->requestFrom(static_cast<uint8_t>(_config.i2c_address), static_cast<uint8_t>(length));
     if (bytes >= length)
     {
       uint16_t value = _config.wire->read() * 256;
@@ -163,7 +163,7 @@ uint32_t MS56XX::readADC()
   if (runTimeVariables.result == 0)
   {
     uint8_t length = 3;
-    int bytes = _config.wire->requestFrom(_config.i2c_address, length);
+    int bytes = _config.wire->requestFrom(static_cast<uint8_t>(_config.i2c_address), static_cast<uint8_t>(length));
     if (bytes >= length)
     {
       uint32_t value = _config.wire->read() * 65536UL;

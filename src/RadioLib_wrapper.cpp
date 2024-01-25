@@ -111,6 +111,7 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
         return false;
     };
 
+
     if (radio_config.rf_switching == Radio_Config::Rf_Switching::Gpio)
     {
         if (bool state = configure_tx_rx_switching(radio_config.rx_enable, radio_config.tx_enable) != true)
@@ -129,6 +130,23 @@ bool RadioLib_Wrapper<T>::configure_radio(Radio_Config radio_config)
     }
 
     return true;
+}
+
+template <typename T>
+bool RadioLib_Wrapper<T>::setBoostedRx()
+{
+  return true;
+}
+
+template <>
+bool RadioLib_Wrapper<SX1262>::setBoostedRx()
+{
+if (radio.setRxBoostedGainMode(true, true) != RADIOLIB_ERR_NONE)
+  {
+    error("Rx Boosted Gain Mode failed");
+    return false;
+  };
+  return true;
 }
 
 // There should be a way to implement this better without copying for each module, but i dont know how. The called functions are a a part of class sx126x that both module inherit
@@ -219,6 +237,49 @@ bool RadioLib_Wrapper<T>::transmit(String msg)
     return true;
 }
 
+template <typename T>
+bool RadioLib_Wrapper<T>::transmit_bytes(uint8_t* bytes, size_t length)
+{
+  if (!get_initialized())
+  {
+    return false;
+  }
+
+  // if radio did something that is not sending data before and it hasn't timed out. Time it out
+  if (!action_done && _action_type != Action_Type::Transmit)
+  {
+    action_done = true;
+  }
+
+  // If already transmitting, don't continue
+  if (action_done == false)
+  {
+    return false;
+  }
+  else
+  {
+    // else reset flag
+    action_done = false;
+  }
+
+  // Clean up from the previous time
+  radio.finishTransmit();
+
+  // Start transmitting
+  _action_status_code = radio.startTransmit(bytes, length);
+
+  // If transmit failed, print error
+  if (_action_status_code != RADIOLIB_ERR_NONE)
+  {
+    error("Starting transmit failed with status code: " + String(_action_status_code));
+    return false;
+  }
+  // set last action to transmit
+  _action_type = Action_Type::Transmit;
+
+  return true;
+}
+
 // Listen to messages over LoRa. Returns true if received successfully
 template <typename T>
 bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &frequency)
@@ -279,6 +340,67 @@ bool RadioLib_Wrapper<T>::receive(String &msg, float &rssi, float &snr, double &
     }
     return true;
 }
+
+template <typename T>
+bool RadioLib_Wrapper<T>::receive_bytes(uint8_t *data, uint16_t &data_length, float &rssi, float &snr, double &frequency)
+{
+  if (!get_initialized())
+  {
+    return false;
+  }
+
+  // If already doing something, don't continue
+  if (action_done == false)
+  {
+    return false;
+  }
+  else
+  {
+    // else reset flag
+    action_done = false;
+  }
+  // Put into standby to try reading data
+  radio.standby();
+  if (_action_type == Action_Type::Receive)
+  {
+    // Try to read received data
+    _action_status_code = radio.readData(data, 0);
+
+    data_length = radio.getPacketLength();
+
+    if (_action_status_code != RADIOLIB_ERR_NONE)
+    {
+      error("Receiving failed with status code: " + String(_action_status_code));
+    }
+
+    rssi = radio.getRSSI();
+    snr = radio.getSNR();
+    frequency = _used_frequency;
+
+    if (_frequency_correction_enabled)
+    {
+      // Frequency correction
+      double freq_error = radio.getFrequencyError() / 1000000.0;
+      double new_freq = _used_frequency - freq_error;
+      if (radio.setFrequency(new_freq) != RADIOLIB_ERR_INVALID_FREQUENCY)
+      {
+        _used_frequency = new_freq;
+        frequency = new_freq;
+      }
+    }
+  }
+  // Restart receiving TODO add error check for start recieve
+  radio.startReceive();
+  _action_type = Action_Type::Receive;
+
+  // If no errors and nothing was received, return false
+  if (_action_status_code != RADIOLIB_ERR_NONE || data_length == 0)
+  {
+    return false;
+  }
+  return true;
+}
+
 // used for CRC16 checksum
 template <typename T>
 uint16_t RadioLib_Wrapper<T>::crc_xmodem_update(uint16_t crc, uint8_t data)
