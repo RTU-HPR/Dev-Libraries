@@ -1,4 +1,6 @@
-# Dev-Libraries
+# DON'T USE THIS REPOSITORY ANYMORE!!!
+# ALL MODULES HERE NOW HAVE THEIR OWN REPOSITORY
+### Dev-Libraries
 The main repository for RTU HPR Team libraries
 
 # Instalation
